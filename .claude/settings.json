@@ -10,7 +10,6 @@
       "Bash(env)",
       "Bash(git push --force*)",
       "Edit(./private/state/**)",
-      "Edit(./.claude/settings.json)",
       "Edit(./rhgex/hook.py)",
       "Edit(./rhgex/guardrails.py)",
       "Edit(./rhgex/dailyloss.py)",
@@ -33,13 +32,25 @@
     ],
     "ask": [
       "Edit(./private/guardrails.toml)",
-      "Edit(./templates/private/guardrails.toml)"
+      "Edit(./templates/private/guardrails.toml)",
+      "Edit(./.claude/settings.json)"
     ]
   },
   "enabledMcpjsonServers": [
     "robinhood-trading"
   ],
   "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '{\"systemMessage\": \"Start the trading day with /trading-day\"}'"
+          }
+        ]
+      }
+    ],
     "PreToolUse": [
       {
         "matcher": "mcp__robinhood-trading__.*",

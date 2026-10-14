@@ -277,9 +277,9 @@ entries until it has today's:
 | Drawdown pause | no new entries once the account is 30% below its highest recorded value (`max_drawdown_pct`); you resume it with `rhgex peak reset` |
 | Blocked both ways | nothing by default; the template has commented-out examples (index funds you also buy elsewhere, stocks you hold elsewhere) |
 
-Claude can't edit the hook code (`rhgex/hook.py`, `guardrails.py`, `dailyloss.py`, `exits.py`, `paths.py`),
-`private/state/` or `.claude/settings.json`: those are on its deny list. Editing your limits
-(`private/guardrails.toml`) asks you first: approve it only when you asked for that change.
+Claude can't edit the hook code (`rhgex/hook.py`, `guardrails.py`, `dailyloss.py`, `exits.py`, `paths.py`)
+or `private/state/`: those are on its deny list. Editing your limits (`private/guardrails.toml`) or
+`.claude/settings.json` asks you first: approve it only when you asked for that change.
 
 ## Exits
 
