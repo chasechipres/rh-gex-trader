@@ -1,0 +1,20 @@
+[project]
+name = "rh-gex-trader"
+version = "0.1.0"
+description = "Claude Code trading agent: GEX insights + technicals/fundamentals, Robinhood MCP execution behind hard guardrails"
+readme = "README.md"
+authors = [
+    { name = "Chase Chipres" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "yfinance>=1.7.0",
+]
+
+[tool.uv]
+package = false
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]

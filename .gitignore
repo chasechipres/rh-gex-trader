@@ -1,0 +1,26 @@
+# --- secrets: never commit ---
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*secret*
+*private*
+!templates/private/
+
+# --- your private repo (rhgex init), cloned here and ignored ---
+/private/
+
+# --- runtime: lives in private/ now; old copies from before the split are never committed here ---
+/guardrails.toml
+/state/
+/logs/
+/notes/
+*.log
+
+# --- python ---
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+

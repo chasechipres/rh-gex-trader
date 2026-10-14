@@ -1,0 +1,35 @@
+# Your hard trading limits, enforced by the PreToolUse hook on every Robinhood MCP call.
+# Only you change this file; Claude has to ask before editing it. The values below are a starting point for a
+# small, high-growth, options-first account where each trade risks 5% (rhgex size) and these caps sit just
+# above that. EDIT each value to taste; the comments say what each one does.
+
+[limits]
+# Size limits are a percentage of the account's total value, which the hook records from get_portfolio.
+# With no value recorded today, opening orders are refused. Adding max_<name>_usd caps a percentage in dollars,
+# e.g. max_order_usd = 500 alongside max_order_pct.
+max_order_pct = 75               # stock orders: quantity x limit price (or dollar amount). Cautious: 25
+max_option_premium_pct = 8       # options: max loss per order (debit paid, or spread width minus credit). Cautious: 5
+max_daily_deployed_pct = 100     # total opening cost per calendar day. Cautious: 50
+max_daily_loss_pct = 20          # no new entries once the account is this far below its first value today. Cautious: 10
+max_drawdown_pct = 30            # no new entries once the account is this far below its peak; you resume with `rhgex peak reset`
+min_option_dte = 3               # no opening options that expire sooner than this many days
+max_new_positions_per_day = 3    # opening orders per calendar day
+require_limit_orders = true      # opening orders must carry a limit price (stock dollar-amount orders excepted)
+
+# --- blocked symbols ---
+# Any order in these symbols is refused (buys, sells, and options on them). Say why in private/CLAUDE.md.
+# `until` is the last blocked day (YYYY-MM-DD); leave it "" to block until you remove the entry.
+# For a wash-sale block after a loss sale on date D, the IRS window ends D + 30 days.
+
+# EDIT: uncomment if you buy S&P 500 funds anywhere else (a 401k, an IRA, automatic investing).
+# A loss here within 30 days of a buy there can be a wash sale. Trade SPX or XSP options instead.
+# [[blocked]]
+# name = "S&P 500: bought in another account"
+# symbols = ["SPY", "VOO", "IVV", "SPLG", "SPYM"]
+# until = ""
+
+# EDIT: stocks you hold in another account and don't want touched here. Uncomment and list yours.
+# [[blocked]]
+# name = "held in another account"
+# symbols = ["ABC", "XYZ"]
+# until = ""

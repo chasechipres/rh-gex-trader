@@ -1,0 +1,20 @@
+#!/bin/sh
+# Block commits that contain secrets. Enabled via: git config core.hooksPath .githooks
+if command -v gitleaks >/dev/null 2>&1; then
+  gitleaks git --pre-commit --staged --redact --no-banner || { echo "gitleaks: possible secret staged, commit blocked"; exit 1; }
+else
+  echo "warning: gitleaks not installed (Windows: winget install Gitleaks.Gitleaks | macOS: brew install gitleaks); falling back to basic check"
+fi
+# Fallback: refuse any staged .env file or 64-hex private key.
+if git diff --cached --name-only | grep -E '(^|/)\.env($|\.)' | grep -v '\.env\.example$'; then
+  echo "refusing to commit .env file"; exit 1
+fi
+if git diff --cached -U0 -- . ':!uv.lock' | grep -E '^\+.*(0x)?[0-9a-fA-F]{64}' >/dev/null; then
+  echo "staged change looks like it contains a private key; commit blocked"; exit 1
+fi
+# Code, config or docs changed: run the tests, including tests/test_readme.py (README facts vs the code).
+# Only in the public repo; private/ commits run the secret checks above.
+if [ -d rhgex ] && git diff --cached --name-only | grep -E '^(rhgex/|tests/|README\.md$|CLAUDE\.md$|templates/|\.claude/settings\.json$)' >/dev/null; then
+  # Clear git's repo variables first, so tests that run git can't touch this repo or its index.
+  out=$(unset $(git rev-parse --local-env-vars); uv run python -m unittest discover -s tests -t . 2>&1) || { echo "$out" | tail -n 30; echo "tests failed (README stale?); commit blocked"; exit 1; }
+fi
