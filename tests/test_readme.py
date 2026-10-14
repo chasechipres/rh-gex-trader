@@ -80,15 +80,15 @@ class RepoLayout(unittest.TestCase):
         perms = json.loads((ROOT / ".claude" / "settings.json").read_text(encoding="utf-8"))["permissions"]
         deny, ask = perms["deny"], perms.get("ask", [])
         denied = {Path(m).name for d in deny for m in re.findall(r"Edit\(\./rhgex/([\w.]+)\)", d)}
-        line = re.search(r"Claude can't edit the hook code \(([^)]*)\),\s+`([^`]+)` or `([^`]+)`", README)
+        line = re.search(r"Claude can't edit the hook code \(([^)]*)\)\s+or `([^`]+)`", README)
         self.assertIsNotNone(line, "README should list what Claude can't edit")
         self.assertEqual({Path(f).name for f in re.findall(r"`([\w./]+\.py)`", line.group(1))}, denied)
-        for path in (line.group(2), line.group(3)):
-            self.assertTrue(any(f"Edit(./{path}" in d for d in deny), f"{path} isn't on the deny list")
-        limits = re.search(r"Editing your limits\s+\(`([^`]+)`\) asks you first", README)
-        self.assertIsNotNone(limits, "README should say Claude asks before editing the limits")
-        self.assertIn(f"Edit(./{limits.group(1)})", ask)
-        self.assertFalse(any(limits.group(1) in d for d in deny), "the limits are on the ask list, not deny")
+        self.assertTrue(any(f"Edit(./{line.group(2)}" in d for d in deny), f"{line.group(2)} isn't on the deny list")
+        asks = re.search(r"Editing your limits\s+\(`([^`]+)`\) or\s+`([^`]+)`\s+asks you first", README)
+        self.assertIsNotNone(asks, "README should say Claude asks before editing the limits and settings")
+        for path in asks.groups():
+            self.assertIn(f"Edit(./{path})", ask)
+            self.assertFalse(any(path in d for d in deny), f"{path} is on the ask list, not deny")
 
 
 class ExitAndSizingFacts(unittest.TestCase):
