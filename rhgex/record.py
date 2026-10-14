@@ -79,7 +79,20 @@ def _rate(wins: int, n: int) -> str:
     return f"{wins}/{n} ({wins / n:.0%})" if n else "n/a"
 
 
+RECENT = 10  # closed trades listed in full; older ones fold into a <details> block
+
+
+def _trade_rows(trades: list[dict]) -> list[str]:
+    rows = ["| Closed | Ticker | Type | P/L | P/L % |", "|---|---|---|---|---|"]
+    for e in trades:
+        pct = "n/a" if e.get("pnl_pct") is None else f"{e['pnl_pct']:+.1f}%"
+        kind = e.get("type", "unknown")
+        rows.append(f"| {e['time'][:10]} | {e['symbol']} | {kind} | ${e['pnl']:,.2f} | {pct} |")
+    return rows
+
+
 def render(s: dict, account_value: float | None = None, today: date | None = None) -> str:
+    """Summary tables first, then the newest RECENT closed trades; the full list folds into <details>."""
     today = today or date.today()
     live = s["live"]
     lines = [f"_Updated {today.isoformat()} by `rhgex record --readme`._", "",
@@ -87,13 +100,6 @@ def render(s: dict, account_value: float | None = None, today: date | None = Non
              "| Account value | Closed trades | Win rate | Realized P/L |", "|---|---|---|---|",
              f"| {f'${account_value:,.2f}' if account_value is not None else 'n/a'} | {live['closed']} | "
              f"{_rate(live['wins'], live['closed'])} | ${live['realized_pnl']:,.2f} |", ""]
-    if live["trades"]:
-        lines += ["| Closed | Ticker | Type | P/L | P/L % |", "|---|---|---|---|---|"]
-        for e in live["trades"]:
-            pct = "n/a" if e.get("pnl_pct") is None else f"{e['pnl_pct']:+.1f}%"
-            kind = e.get("type", "unknown")
-            lines.append(f"| {e['time'][:10]} | {e['symbol']} | {kind} | ${e['pnl']:,.2f} | {pct} |")
-        lines.append("")
     if s.get("by_type"):
         lines += ["**By trade type**", "", "| Type | Closed | Win rate | P/L |", "|---|---|---|---|"]
         for t in s["by_type"]:
@@ -104,6 +110,13 @@ def render(s: dict, account_value: float | None = None, today: date | None = Non
         for b in s["by_confidence"]:
             lines.append(f"| {b['band']} | {b['closed']} | {_rate(b['wins'], b['closed'])} | ${b['pnl']:,.2f} |")
         lines.append("")
+    newest = sorted(live["trades"], key=lambda e: e["time"], reverse=True)
+    if newest:
+        title = "Closed trades" if len(newest) <= RECENT else f"Last {RECENT} closed trades"
+        lines += [f"**{title}** (newest first)", ""] + _trade_rows(newest[:RECENT]) + [""]
+    if len(newest) > RECENT:
+        lines += ["<details>", f"<summary>All {len(newest)} closed trades</summary>", ""]
+        lines += _trade_rows(newest) + ["", "</details>", ""]
     return "\n".join(lines).rstrip("\n")
 
 
