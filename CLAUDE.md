@@ -322,8 +322,9 @@ and once the tools work again, confirm every position still has its resting stop
 
 ## Changing this repo
 
-`main` is protected: every change to the public repo goes through a pull request (no direct pushes, no
-force-pushes). `private/` is separate and still syncs with `rhgex sync`.
+`main` on GitHub is protected: every change to the public repo goes through a pull request (no direct pushes,
+no force-pushes). Without write access, push the branch to your fork and open the PR from there. `private/` is
+separate and still syncs with `rhgex sync`.
 
 - **Branch** off an up-to-date `main`: `feat/…`, `fix/…`, `docs/…` or `rules/…` (for `CLAUDE.md` changes).
   One topic per branch; keep unrelated fixes in their own PR.
