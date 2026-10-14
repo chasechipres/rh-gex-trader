@@ -23,11 +23,16 @@ credentials. The pre-commit hook scans for secrets; don't skip it with `--no-ver
 
 ## Make the change
 
-1. Branch off an up-to-date `main` (`git switch main && git pull --ff-only && git switch -c fix/…`). One topic
-   per branch. `main` is protected: no direct or force pushes. Without write access, push to your fork.
-2. Commit with a short imperative subject (≤ 72 chars, e.g. "Add stale-rules check to exit step 1") and a body
+1. **Fork first** unless you've been added as a collaborator: only collaborators can push branches here.
+   `gh repo fork chasechipres/rh-gex-trader --clone` makes your fork and clones it (or run `gh repo fork` in an
+   existing clone; it adds your fork as `origin` and this repo as `upstream`). Keep `main` in sync with
+   `gh repo sync <you>/rh-gex-trader` or `git pull upstream main`.
+2. Branch off an up-to-date `main` (`git switch main && git pull --ff-only && git switch -c fix/…`). One topic
+   per branch, pushed to your fork (collaborators can push to this repo). `main` is protected: no direct or
+   force pushes, even for the owner.
+3. Commit with a short imperative subject (≤ 72 chars, e.g. "Add stale-rules check to exit step 1") and a body
    only when the why isn't obvious.
-3. Test: `uv run python -m unittest discover -s tests -t .` (or `uv run pytest`). The pre-commit hook runs the
+4. Test: `uv run python -m unittest discover -s tests -t .` (or `uv run pytest`). The pre-commit hook runs the
    tests when code, templates, `README.md`, `CLAUDE.md` or `.claude/settings.json` is staged, and
    `tests/test_readme.py` checks README facts against the code, so a change that leaves the README stale is
    refused. Fix the README in the same commit.
@@ -46,4 +51,14 @@ Title like a commit subject. Body, in this order:
   `.claude/` change makes running sessions ask for a restart; say so.
 - **Testing:** the commands run and their result (e.g. "unittest: 149 passed"), plus anything checked by hand.
 
-It's merged with **squash** once it's green and reviewed, and the branch is deleted.
+## Merging
+
+Only the maintainer (and collaborators with write access) can merge. A PR is merged when:
+
+- the tests pass (run them locally and say so under **Testing**; there's no CI yet),
+- the maintainer has reviewed it, and
+- it's one topic with nothing personal in it.
+
+It's merged with **squash**, so the PR title becomes the commit on `main`, and the branch is deleted afterward.
+Expect changes to `CLAUDE.md`, the hook or the default limits to get the closest look: they change how real
+money is traded for everyone who pulls.
