@@ -9,12 +9,7 @@
       "Bash(*printenv*)",
       "Bash(env)",
       "Bash(git push --force*)",
-      "Edit(./private/state/**)",
-      "Edit(./rhgex/hook.py)",
-      "Edit(./rhgex/guardrails.py)",
-      "Edit(./rhgex/dailyloss.py)",
-      "Edit(./rhgex/exits.py)",
-      "Edit(./rhgex/paths.py)"
+      "Edit(./private/state/**)"
     ],
     "allow": [
       "Bash(uv run python -m rhgex research*)",
@@ -31,6 +26,11 @@
       "Edit(./private/notes/**)"
     ],
     "ask": [
+      "Edit(./rhgex/hook.py)",
+      "Edit(./rhgex/guardrails.py)",
+      "Edit(./rhgex/dailyloss.py)",
+      "Edit(./rhgex/exits.py)",
+      "Edit(./rhgex/paths.py)",
       "Edit(./private/guardrails.toml)",
       "Edit(./templates/private/guardrails.toml)",
       "Edit(./.claude/settings.json)"

@@ -76,17 +76,19 @@ class RepoLayout(unittest.TestCase):
         actual = {p.name for p in (ROOT / "rhgex").glob("*.py")} - {"__main__.py"}
         self.assertEqual(listed, actual)
 
-    def test_deny_list_matches(self):
+    def test_permission_lists_match(self):
         perms = json.loads((ROOT / ".claude" / "settings.json").read_text(encoding="utf-8"))["permissions"]
         deny, ask = perms["deny"], perms.get("ask", [])
-        denied = {Path(m).name for d in deny for m in re.findall(r"Edit\(\./rhgex/([\w.]+)\)", d)}
-        line = re.search(r"Claude can't edit the hook code \(([^)]*)\)\s+or `([^`]+)`", README)
-        self.assertIsNotNone(line, "README should list what Claude can't edit")
-        self.assertEqual({Path(f).name for f in re.findall(r"`([\w./]+\.py)`", line.group(1))}, denied)
-        self.assertTrue(any(f"Edit(./{line.group(2)}" in d for d in deny), f"{line.group(2)} isn't on the deny list")
-        asks = re.search(r"Editing your limits\s+\(`([^`]+)`\) or\s+`([^`]+)`\s+asks you first", README)
-        self.assertIsNotNone(asks, "README should say Claude asks before editing the limits and settings")
-        for path in asks.groups():
+        denied = re.search(r"Claude can't edit `([^`]+)`: it's on its deny list", README)
+        self.assertIsNotNone(denied, "README should say what Claude can't edit")
+        self.assertTrue(any(f"Edit(./{denied.group(1)}" in d for d in deny), f"{denied.group(1)} isn't denied")
+        asks = re.search(r"Editing the hook\s+code \(([^)]*)\), your limits\s+\(`([^`]+)`\) or `([^`]+)` asks you first",
+                         README)
+        self.assertIsNotNone(asks, "README should say Claude asks before editing the hook code, limits and settings")
+        hook_files = {Path(f).name for f in re.findall(r"`([\w./]+\.py)`", asks.group(1))}
+        asked_code = {Path(m).name for a in ask for m in re.findall(r"Edit\(\./rhgex/([\w.]+)\)", a)}
+        self.assertEqual(hook_files, asked_code)
+        for path in [f"rhgex/{f}" for f in hook_files] + [asks.group(2), asks.group(3)]:
             self.assertIn(f"Edit(./{path})", ask)
             self.assertFalse(any(path in d for d in deny), f"{path} is on the ask list, not deny")
 
