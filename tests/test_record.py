@@ -71,6 +71,24 @@ class TradeType(unittest.TestCase):
         self.assertIn("| spread | 1 | 1/1 (100%) | $40.00 |", text)
         self.assertIn("| 2026-10-09 | GME | shares | $1.16 | +1.1% |", text)
 
+    def test_summaries_come_before_the_trade_list(self):
+        text = record.render(record.summarize(self.ENTRIES, self.PLANS), 1405.28, date(2026, 10, 14))
+        self.assertLess(text.index("By trade type"), text.index("By entry confidence"))
+        self.assertLess(text.index("By entry confidence"), text.index("**Closed trades**"))
+        self.assertNotIn("<details>", text)
+
+    def test_long_history_folds_into_details(self):
+        exits = [{"time": f"2026-10-{d:02d}T10:00:00", "symbol": f"T{d}", "action": "exit", "pnl": 1.0, "pnl_pct": 5.0}
+                 for d in range(1, 15)]
+        text = record.render(record.summarize(exits), 1000, date(2026, 10, 15))
+        recent, folded = text.split("<details>")
+        self.assertIn("**Last 10 closed trades** (newest first)", recent)
+        self.assertIn("| 2026-10-14 | T14 |", recent)
+        self.assertNotIn("| 2026-10-04 | T4 |", recent)
+        self.assertLess(recent.index("T14"), recent.index("T13"))
+        self.assertIn("<summary>All 14 closed trades</summary>", folded)
+        self.assertIn("| 2026-10-01 | T1 |", folded)
+
     def test_no_trades_no_type_table(self):
         self.assertNotIn("By trade type", record.render(record.summarize([]), 1000, date(2026, 10, 14)))
 
