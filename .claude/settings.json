@@ -8,7 +8,6 @@
       "Bash(cat .env*)",
       "Bash(*printenv*)",
       "Bash(env)",
-      "Bash(git push --force*)",
       "Edit(./private/state/**)"
     ],
     "allow": [
@@ -26,6 +25,10 @@
       "Edit(./private/notes/**)"
     ],
     "ask": [
+      "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "Bash(git push * --force*)",
+      "Bash(git push * -f*)",
       "Edit(./rhgex/hook.py)",
       "Edit(./rhgex/guardrails.py)",
       "Edit(./rhgex/dailyloss.py)",
