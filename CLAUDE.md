@@ -45,6 +45,7 @@ uv run python -m rhgex size --account PX --entry PX --stop PX                   
 uv run python -m rhgex lock acquire|release|status                              # one machine at a time
 uv run python -m rhgex peak show                                                 # drawdown baseline (peak reset: user only)
 uv run python -m rhgex journal TICKER trade|skip|watch|exit --thesis "..." --confidence 0.7 --source "..."
+uv run python -m rhgex journal TICKER trade --type shares|call|put|spread ...   # --type is required for trades
 uv run python -m rhgex journal TICKER exit --pnl -6.50 --pnl-pct -40 --thesis "..." --confidence 1
 uv run python -m rhgex record [--readme --account-value PX]   # live P/L; updates private/README.md
 uv run python -m rhgex sync [-m "msg"] [--pull]                  # commit private/, then pull + push it (if it has a remote)
@@ -228,8 +229,9 @@ orders and no open plans, say so in one line and stop (after steps 5 and 6, if t
 7. **Journal every decision**, traded or skipped, with `rhgex journal`, citing the post that prompted it
    (`--source` must be the link of a post saved in `private/notes/posts/`; the tool refuses anything else, so save
    the post first and copy its link from the note, never from memory):
-   `trade`, `skip` (fails a check, including a setup that clears everything but doesn't fit a limit) or
-   `watch` (not triggered yet; name the trigger). No paper trades.
+   `trade` (with `--type shares|call|put|spread`, so the track record splits results by trade type), `skip`
+   (fails a check, including a setup that clears everything but doesn't fit a limit) or `watch` (not triggered
+   yet; name the trigger). No paper trades.
 8. **Enter** (regular hours only, 9:35-15:50 ET; 9:35-12:50 ET on early-close days):
    0. **Preflight:** run `preflight TICKER --direction ... --price <live> --stop ... --target ...` (options:
       `--expiration` and one `--leg BID,ASK,OI` per leg from live `get_option_quotes`; `--source` the post

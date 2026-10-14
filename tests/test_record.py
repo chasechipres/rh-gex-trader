@@ -37,8 +37,42 @@ class Summary(unittest.TestCase):
         text = path.read_text(encoding="utf-8")
         self.assertNotIn("old", text)
         self.assertIn("| $115.22 | 2 | 1/2 (50%) | $5.50 |", text)
-        self.assertIn("| 2026-10-09 | KTOS | $-6.50 | -40.0% |", text)
+        self.assertIn("| 2026-10-09 | KTOS | unknown | $-6.50 | -40.0% |", text)
         self.assertTrue(text.endswith("## Next\n"))
+
+
+class TradeType(unittest.TestCase):
+    ENTRIES = [
+        {"time": "2026-10-08T10:00:00", "symbol": "NVDA", "action": "trade", "confidence": 0.6, "type": "spread"},
+        {"time": "2026-10-09T10:00:00", "symbol": "NVDA", "action": "exit", "pnl": 40.0, "pnl_pct": 80.0},
+        {"time": "2026-10-08T11:00:00", "symbol": "GME", "action": "trade", "confidence": 0.55},  # before --type
+        {"time": "2026-10-09T11:00:00", "symbol": "GME", "action": "exit", "pnl": 1.16, "pnl_pct": 1.1},
+        {"time": "2026-10-09T12:00:00", "symbol": "KTOS", "action": "exit", "pnl": -6.5, "pnl_pct": -40.0},
+        {"time": "2026-10-09T13:00:00", "symbol": "TSLA", "action": "exit", "pnl": -10.0, "pnl_pct": -50.0},
+        {"time": "2026-10-09T14:00:00", "symbol": "SOFI", "action": "exit", "pnl": 5.0, "pnl_pct": 25.0},
+    ]
+    PLANS = [
+        {"symbol": "GME", "asset": "stock", "direction": "bullish", "opened": "2026-10-08T10:55:00"},
+        {"symbol": "TSLA", "asset": "option", "direction": "bearish", "opened": "2026-10-08T09:00:00"},
+        {"symbol": "SOFI", "asset": "option", "direction": "bullish", "opened": "2026-10-08T09:00:00"},
+        {"symbol": "SOFI", "asset": "stock", "direction": "bullish", "opened": "2026-10-10T09:00:00"},  # later trade
+    ]
+
+    def test_type_from_journal_then_plan(self):
+        types = {e["symbol"]: e["type"] for e in record.summarize(self.ENTRIES, self.PLANS)["live"]["trades"]}
+        self.assertEqual(types, {"NVDA": "spread", "GME": "shares", "KTOS": "unknown", "TSLA": "put",
+                                 "SOFI": "call"})
+
+    def test_by_type_table(self):
+        s = record.summarize(self.ENTRIES, self.PLANS)
+        self.assertEqual([t["type"] for t in s["by_type"]], ["shares", "call", "put", "spread", "unknown"])
+        text = record.render(s, 1405.28, date(2026, 10, 14))
+        self.assertIn("**By trade type**", text)
+        self.assertIn("| spread | 1 | 1/1 (100%) | $40.00 |", text)
+        self.assertIn("| 2026-10-09 | GME | shares | $1.16 | +1.1% |", text)
+
+    def test_no_trades_no_type_table(self):
+        self.assertNotIn("By trade type", record.render(record.summarize([]), 1000, date(2026, 10, 14)))
 
 
 if __name__ == "__main__":
