@@ -282,7 +282,8 @@ entries until it has today's:
 Claude can't edit `private/state/`: it's on its deny list, and only `rhgex` commands change it. Editing the hook
 code (`rhgex/hook.py`, `guardrails.py`, `dailyloss.py`, `exits.py`, `paths.py`), your limits
 (`private/guardrails.toml`) or `.claude/settings.json` asks you first: read the diff and approve it only when
-you asked for that change.
+you asked for that change. A force-push asks first too (for cleaning up a branch); GitHub still refuses any
+force-push to `main`.
 
 ## Exits
 
