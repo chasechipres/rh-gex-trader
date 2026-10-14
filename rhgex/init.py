@@ -175,13 +175,14 @@ def fill_track_record(private: Path) -> float | None:
     """Rebuild private/README.md's track record from the journal and the latest recorded account value."""
     import json
 
-    from . import record
+    from . import exits, record
 
     accounts = private / "state" / "account.json"
     recs = [r for r in json.loads(accounts.read_text()).values() if r.get("total_value")] if accounts.exists() else []
     value = max(recs, key=lambda r: (r.get("date", ""), r.get("time", "")))["total_value"] if recs else None
     entries = record.load(private / "logs" / "journal.jsonl")
-    record.write_readme(record.render(record.summarize(entries), value), private / "README.md")
+    plans = exits.load(private / "state" / "plans.json")
+    record.write_readme(record.render(record.summarize(entries, plans), value), private / "README.md")
     return value
 
 

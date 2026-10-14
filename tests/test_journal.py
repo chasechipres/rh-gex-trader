@@ -1,7 +1,11 @@
+import argparse
+import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
+import rhgex
 from rhgex import check_source
 
 SAVED = "https://x.com/Han_Akamatsu/status/2110049496042258673"
@@ -33,6 +37,32 @@ class CheckSource(unittest.TestCase):
 
     def test_exits_may_omit_the_source(self):
         self.check("exit", "")
+
+
+class TradeType(unittest.TestCase):
+    def setUp(self):
+        self.logs = Path(tempfile.mkdtemp())
+        mock.patch.object(rhgex, "LOG_DIR", self.logs).start()
+        mock.patch.object(rhgex, "check_source", lambda *a, **k: None).start()
+        mock.patch.object(rhgex, "out", lambda *a, **k: None).start()
+        self.addCleanup(mock.patch.stopall)
+
+    def journal(self, action, type_=None):
+        rhgex.cmd_journal(argparse.Namespace(symbol="nvda", action=action, thesis="t", confidence=0.6,
+                                             source=SAVED, type=type_, pnl=None, pnl_pct=None))
+
+    def test_trade_needs_type(self):
+        with self.assertRaisesRegex(SystemExit, "--type"):
+            self.journal("trade")
+        self.assertFalse((self.logs / "journal.jsonl").exists())
+
+    def test_trade_records_type(self):
+        self.journal("trade", "spread")
+        self.assertEqual(json.loads((self.logs / "journal.jsonl").read_text())["type"], "spread")
+
+    def test_other_actions_skip_type(self):
+        self.journal("watch")
+        self.assertNotIn("type", json.loads((self.logs / "journal.jsonl").read_text()))
 
 
 if __name__ == "__main__":

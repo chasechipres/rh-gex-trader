@@ -122,7 +122,7 @@ class Migrate(Base):
         readme = (self.private / "README.md").read_text()
         self.assertEqual(res["track_record_account_value"], 1000.0)
         self.assertIn("$1,000.00", readme)
-        self.assertIn("| 2026-10-12 | NKE | $12.50 | +20.0% |", readme)
+        self.assertIn("| 2026-10-12 | NKE | unknown | $12.50 | +20.0% |", readme)
         self.assertNotIn("No closed trades yet", readme)
 
     def test_recovers_files_a_pull_already_deleted(self):
