@@ -55,7 +55,8 @@ Title like a commit subject. Body, in this order:
 
 Only the maintainer (and collaborators with write access) can merge. A PR is merged when:
 
-- the tests pass (run them locally and say so under **Testing**; there's no CI yet),
+- CI passes: GitHub Actions runs the tests on Linux, Windows and macOS for every PR, and `main` won't accept
+  a merge until all three pass,
 - the maintainer has reviewed it, and
 - it's one topic with nothing personal in it.
 
