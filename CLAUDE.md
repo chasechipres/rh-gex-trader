@@ -25,8 +25,8 @@ instructions follow, and they win over this file where the two differ:
 - **Autonomy:** place orders without asking only if `private/CLAUDE.md` grants it. Without a grant, ask the
   user before each order.
 - **Not set up?** If `private/guardrails.toml` is missing, the hook refuses every order. Run
-  `rhgex init --check`, tell the user what's missing, and point them to the README's "Your private folder"
-  steps. Don't run `rhgex init --github` yourself: creating a GitHub repo is the user's call.
+  `rhgex init --check`, tell the user what's missing, and suggest `/setup`, which walks them
+  through it. Don't run `rhgex init --github` yourself: creating a GitHub repo is the user's call.
 - **Sync** the private folder with `rhgex sync -m "<what changed>"`: it commits `private/` and, when it has a
   remote, pulls and pushes it. Local-only setups just commit. Cycles never commit to the public repo.
 

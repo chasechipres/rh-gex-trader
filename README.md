@@ -21,12 +21,12 @@ private git repo inside this folder.
 [@Han_Akamatsu](https://x.com/Han_Akamatsu), [Claude Code](https://claude.com/claude-code), Chrome with
 [Claude in Chrome](https://claude.com/chrome), and a GitHub account.
 
-1. **Install and clone** ([Setup](#setup)), then `uv sync` and `git config core.hooksPath .githooks`.
-2. **Make your private folder:** `uv run python -m rhgex init --github` (a private repo only you can see).
-3. **Make it yours:** edit every `EDIT` line in `private/guardrails.toml` and `private/CLAUDE.md`, then
-   `uv run python -m rhgex sync -m "my settings"`.
-4. **Connect:** start `claude` in the folder, `/mcp` → `robinhood-trading` → Authenticate, and log in to X in Chrome.
-5. **Trade:** type `/trading-day` at about 10:15am ET. It runs the rest of the day on its own.
+1. **Install and clone** ([Setup](#setup)), then start `claude` in the folder.
+2. **Type `/setup`.** It detects Windows or macOS, checks your tools, runs `uv sync` and the git hooks, makes your
+   private folder (a private GitHub repo only you can see), and asks a few questions to fill in your settings.
+3. **Do what only you can** (`/setup` ends with this checklist): `/mcp` → `robinhood-trading` → Authenticate, and
+   log in to X in Chrome.
+4. **Trade:** type `/trading-day` at about 10:15am ET. It runs the rest of the day on its own.
 
 ## How it works
 
@@ -82,11 +82,14 @@ gh auth login --web --git-protocol https
 gh auth setup-git
 gh repo clone chasechipres/rh-gex-trader
 cd rh-gex-trader
-uv sync                                    # Python + dependencies into .venv
-git config core.hooksPath .githooks        # secret scan + tests before every commit
-uv run python -m rhgex init --github       # your private folder (see below)
-claude                                     # then: /mcp → robinhood-trading → Authenticate
+claude                                     # then: /setup
 ```
+
+`/setup` does the rest and can be re-run any time: it checks the tools (with the install line for your OS if
+one is missing), runs `uv sync` and `git config core.hooksPath .githooks`, logs `gh` in with you, runs
+`rhgex init` (below), and fills in your settings from a few questions. It finishes with the steps only you can
+do: `/mcp` → robinhood-trading → Authenticate, Claude in Chrome, and the session-start command. By hand, those
+middle steps are `uv sync`, `git config core.hooksPath .githooks` and `uv run python -m rhgex init --github`.
 
 Then install [Claude in Chrome](https://claude.com/chrome) and log in to X in that Chrome profile (subscriber
 posts need it). The hook finds the right venv Python on either OS, so `.claude/settings.json` is shared.
@@ -162,13 +165,14 @@ until = ""                      # or "YYYY-MM-DD" for a block that expires
 
 Examples for `private/CLAUDE.md`: "Ask me before every entry." · "No biotech." · "Options only." · "Notify me only
 for fills and stop-outs." · "My computer is on Central time." To change a rule for everyone, open a pull request
-(`main` is protected; the format is in CLAUDE.md's "Changing this repo"). Weekly reviews propose rule changes;
+(`main` is protected; see [CONTRIBUTING.md](CONTRIBUTING.md)). Weekly reviews propose rule changes;
 you decide.
 
 ## Running it
 
 | You type | What happens |
 |---|---|
+| `/setup` | Sets up this machine, or checks an existing setup |
 | `/trading-day` | Starts the day: same as the line below |
 | `run a trading cycle per CLAUDE.md` | Full cycle: exits, new posts, research, trades; schedules the rest of the day |
 | `run an exit check per CLAUDE.md` | Exits only: quick and cheap |
@@ -201,9 +205,7 @@ repo (`rhgex sync`). Needs the GitHub-synced private folder (`rhgex init --githu
 ```sh
 gh auth login --web --git-protocol https && gh auth setup-git
 gh repo clone chasechipres/rh-gex-trader && cd rh-gex-trader
-uv sync && git config core.hooksPath .githooks
-uv run python -m rhgex init --clone        # pulls your private repo into private/
-claude                                     # then /mcp → robinhood-trading → Authenticate; log in to X in Chrome
+claude                                     # then /setup: it finds your private repo and clones it
 ```
 
 **Start every session with this** (from the repo folder; Windows needs PowerShell 7, `pwsh`, for `&&`):
@@ -312,8 +314,9 @@ have them.
 ```
 rh-gex-trader/              shared (this repo)
 ├── CLAUDE.md               the playbook Claude follows; imports private/CLAUDE.md
+├── CONTRIBUTING.md         how to change this repo
 ├── .mcp.json               Robinhood MCP server (URL only, no credentials)
-├── .claude/                guardrail hooks, permission lists, the /trading-day skill
+├── .claude/                guardrail hooks, permission lists, the /setup and /trading-day skills
 ├── .githooks/pre-commit    secret scan (both repos) + tests (this repo)
 ├── rhgex/
 │   ├── __init__.py         the command line
@@ -344,7 +347,7 @@ templates, `README.md` or `CLAUDE.md` is staged, so a change that leaves this RE
 
 | Symptom | Fix |
 |---|---|
-| Every order is denied: "private/guardrails.toml is missing" | Set up your private folder: `uv run python -m rhgex init`. |
+| Every order is denied: "private/guardrails.toml is missing" | Set up your private folder: `/setup` (or `uv run python -m rhgex init`). |
 | `rhgex sync` says "pull failed" | Two machines changed the same private file. Resolve it in `private/` by hand (ask Claude to explain the conflict, not to merge `state/`). |
 | Every Robinhood call says "guardrail hook failed to run" | The venv is missing: run `uv sync` in the repo folder. |
 | `uv: command not found` (Windows) | Restart the terminal after installing, then restart `claude`. |
