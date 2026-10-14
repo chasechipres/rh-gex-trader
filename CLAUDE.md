@@ -69,8 +69,13 @@ Run this first in every cycle. It's also a cycle on its own: "run an exit check 
 Keep looped exit checks cheap: don't read X or run research in them. If there are no positions, no open
 orders and no open plans, say so in one line and stop (after steps 5 and 6, if they apply).
 
-1. `git pull` (code and rules) and `rhgex sync --pull` first: exit plans (`private/state/plans.json`) and the
-   order ledger are synced, and another machine may have changed them.
+1. `git pull` (code and rules), then `uv sync` (dependencies), and `rhgex sync --pull` first: exit plans
+   (`private/state/plans.json`) and the order ledger are synced, and another machine may have changed them.
+   **Stale rules:** note `git rev-parse HEAD` (and `git -C private rev-parse HEAD`) before pulling. If
+   `git diff --name-only <old> HEAD -- CLAUDE.md .claude/` (or `-- CLAUDE.md` in `private/`) lists anything,
+   this session is running on old rules. Finish this exit check (protection comes first) but place no new
+   entries, and tell the user to restart the session (`PushNotification` if they may be away). A running exit
+   loop keeps going until they do.
    Then read positions and open orders with the Robinhood tools (`get_equity_positions`,
    `get_option_positions` nonzero, `get_equity_orders` / `get_option_orders`), quotes for each holding, and
    `get_portfolio` (only when something is held) so the hook's daily-loss stop sees the current value.
@@ -314,3 +319,24 @@ and once the tools work again, confirm every position still has its resting stop
   it with `--no-verify`. If a sync's pull conflicts, stop and ask the user; don't hand-merge `private/state/`.
 - Past decisions are in `private/logs/journal.jsonl`; placed orders are in `private/state/ledger.jsonl`; exit
   plans are in `private/state/plans.json` (change them only through `rhgex plan`).
+
+## Changing this repo
+
+`main` on GitHub is protected: every change to the public repo goes through a pull request (no direct pushes,
+no force-pushes). Without write access, push the branch to your fork and open the PR from there. `private/` is
+separate and still syncs with `rhgex sync`.
+
+- **Branch** off an up-to-date `main`: `feat/…`, `fix/…`, `docs/…` or `rules/…` (for `CLAUDE.md` changes).
+  One topic per branch; keep unrelated fixes in their own PR.
+- **Commits:** short imperative subject (≤ 72 chars, e.g. "Add stale-rules check to exit step 1"), with a
+  body only when the why isn't obvious. No `Co-Authored-By` or other Claude attribution lines.
+- **Test** before opening it: `uv run pytest`. Changes to the hook or guardrails need a test that covers them.
+- **PR title** like a commit subject. **PR body**, in this order:
+  - **Summary:** what changes and why, in 1-3 sentences.
+  - **Changes:** a bullet per file or behavior, naming the file.
+  - **Trading impact:** what this changes about orders, limits, exits or the cycle, or "none". Note that a
+    `CLAUDE.md` or `.claude/` change makes running sessions ask for a restart.
+  - **Testing:** the commands run and their result (e.g. `uv run pytest`: 84 passed), plus anything checked
+    by hand.
+- Nothing personal in the public repo: no account values, positions, journal entries or private-repo links.
+- Merge with **squash** once it's green and reviewed; delete the branch afterward.

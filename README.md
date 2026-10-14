@@ -239,6 +239,8 @@ into an empty `private/` with `--from <that commit>`. Then on each other machine
 ## Track your performance
 
 Everything is recorded in your private repo, so you can read it on GitHub from anywhere:
+[**find your private repo**](https://github.com/search?q=rh-gex-trader-private+in%3Aname+user%3A%40me&type=repositories)
+(searches your own repos while you're logged in; if you gave it another name, `rhgex init --check` prints its URL).
 
 | Where | What | Updated by |
 |---|---|---|
@@ -292,7 +294,8 @@ refused with the reason; exits always go through.
 - "Notify me only for fills and stop-outs."
 - "My computer is on Central time." (So cron times and post file names line up.)
 
-**The playbook** (`CLAUDE.md`) is shared. To change a rule for everyone, open a pull request. To change it
+**The playbook** (`CLAUDE.md`) is shared. To change a rule for everyone, open a pull request (`main` is protected;
+the format is in CLAUDE.md's "Changing this repo"). To change it
 only for you, write the override in `private/CLAUDE.md`, and it wins. Each weekly review ends with rule
 changes Claude proposes; you decide whether to adopt them.
 
@@ -303,6 +306,10 @@ git pull                              # new code and rules
 uv sync                               # new dependencies, if any
 uv run python -m rhgex init           # adds any new template files; never overwrites yours
 ```
+
+Every cycle also runs `git pull` and `uv sync` on its own. A running session keeps the `CLAUDE.md` it started
+with, though, so when a pull changes `CLAUDE.md` or `.claude/`, Claude finishes the exit check, places no new
+entries and asks you to restart. Run `git pull && uv sync` before starting `claude` to skip that.
 
 `init` lists `new_limits_to_add`: settings the template gained that your `guardrails.toml` doesn't have yet.
 Copy them over from `templates/private/guardrails.toml` (until you do, the code's defaults apply).
@@ -511,6 +518,7 @@ templates, `README.md` or `CLAUDE.md` is staged, so a change that leaves the REA
 | `rhgex sync` says "pull failed" | Two machines changed the same private file. Resolve it in `private/` by hand (ask Claude to explain the conflict, not to merge `state/`). |
 | Every Robinhood call says "guardrail hook failed to run" | The venv is missing: run `uv sync` in the repo folder. |
 | `uv: command not found` (Windows) | Restart the terminal after installing, then restart `claude`. |
+| Claude says the rules changed and asks for a restart | Exit `claude`, run `git pull && uv sync`, start it again. Open positions stay protected meanwhile. |
 | `robinhood-trading` isn't in `/mcp` | Start `claude` from inside the repo folder; the server is defined in `.mcp.json`. |
 | `/mcp` shows "Needs authentication" | `/mcp` → robinhood-trading → Authenticate. |
 | Claude can't read subscriber posts | Log in to X in the Chrome profile the extension uses. |
