@@ -223,6 +223,8 @@ def cmd_journal(args) -> None:
         check_source(args.action, args.source)
     except ValueError as e:
         sys.exit(f"refused: {e}")
+    if args.action == "trade" and not args.type:
+        sys.exit("refused: a trade entry needs --type (shares, call, put or spread) for the track record")
     try:
         paths.ensure(LOG_DIR)
     except FileNotFoundError as e:
@@ -230,6 +232,8 @@ def cmd_journal(args) -> None:
     entry = {"time": datetime.now().isoformat(timespec="seconds"), "symbol": args.symbol.upper(),
              "action": args.action, "confidence": args.confidence, "thesis": args.thesis,
              "source": args.source}
+    if args.action == "trade":
+        entry["type"] = args.type
     if args.action == "exit" and args.pnl is not None:
         entry["pnl"], entry["pnl_pct"] = round(args.pnl, 2), args.pnl_pct
     with open(LOG_DIR / "journal.jsonl", "a") as f:
@@ -238,9 +242,9 @@ def cmd_journal(args) -> None:
 
 
 def cmd_record(args) -> None:
-    from . import record
+    from . import exits, record
 
-    s = record.summarize(record.load())
+    s = record.summarize(record.load(), exits.load())
     if args.readme:
         record.write_readme(record.render(s, args.account_value))
     out(s)
@@ -345,6 +349,8 @@ def main() -> None:
     j.add_argument("--thesis", required=True)
     j.add_argument("--confidence", type=float, required=True, help="0-1")
     j.add_argument("--source", default="", help="e.g. the X post date/link the idea came from")
+    j.add_argument("--type", choices=["shares", "call", "put", "spread"],
+                   help="trade (required): what was bought, for the track record's by-type split")
     j.add_argument("--pnl", type=float, help="exit: realized P/L in dollars (negative for a loss)")
     j.add_argument("--pnl-pct", type=float, help="exit: realized P/L as a % of the position's cost")
 

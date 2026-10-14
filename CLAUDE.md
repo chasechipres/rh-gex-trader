@@ -45,6 +45,7 @@ uv run python -m rhgex size --account PX --entry PX --stop PX                   
 uv run python -m rhgex lock acquire|release|status                              # one machine at a time
 uv run python -m rhgex peak show                                                 # drawdown baseline (peak reset: user only)
 uv run python -m rhgex journal TICKER trade|skip|watch|exit --thesis "..." --confidence 0.7 --source "..."
+uv run python -m rhgex journal TICKER trade --type shares|call|put|spread ...   # --type is required for trades
 uv run python -m rhgex journal TICKER exit --pnl -6.50 --pnl-pct -40 --thesis "..." --confidence 1
 uv run python -m rhgex record [--readme --account-value PX]   # live P/L; updates private/README.md
 uv run python -m rhgex sync [-m "msg"] [--pull]                  # commit private/, then pull + push it (if it has a remote)
@@ -131,6 +132,8 @@ orders and no open plans, say so in one line and stop (after steps 5 and 6, if t
    fill versus the average cost (or `get_realized_pnl`). This is a tax record only; it blocks nothing.
    **Journal every full exit with its P/L:** `journal TICKER exit --pnl <dollars> --pnl-pct <% of cost>`
    (from the fill versus the average cost, or `get_realized_pnl`). The track record counts only exits with `--pnl`.
+   Then refresh it right away with `record --readme --account-value <get_portfolio total_value>`, so
+   `private/README.md` shows the exit without waiting for the next full cycle.
    **Push plan changes:** whenever `plan add`, `plan raise-stop` or `plan close` changed the plans, or `wash add`
    logged a loss, run `rhgex sync` right away, so other machines never act on stale plans.
 4. Exit when the source clearly flips his view on a holding and your read agrees.
@@ -228,8 +231,9 @@ orders and no open plans, say so in one line and stop (after steps 5 and 6, if t
 7. **Journal every decision**, traded or skipped, with `rhgex journal`, citing the post that prompted it
    (`--source` must be the link of a post saved in `private/notes/posts/`; the tool refuses anything else, so save
    the post first and copy its link from the note, never from memory):
-   `trade`, `skip` (fails a check, including a setup that clears everything but doesn't fit a limit) or
-   `watch` (not triggered yet; name the trigger). No paper trades.
+   `trade` (with `--type shares|call|put|spread`, so the track record splits results by trade type), `skip`
+   (fails a check, including a setup that clears everything but doesn't fit a limit) or `watch` (not triggered
+   yet; name the trigger). No paper trades.
 8. **Enter** (regular hours only, 9:35-15:50 ET; 9:35-12:50 ET on early-close days):
    0. **Preflight:** run `preflight TICKER --direction ... --price <live> --stop ... --target ...` (options:
       `--expiration` and one `--leg BID,ASK,OI` per leg from live `get_option_quotes`; `--source` the post
