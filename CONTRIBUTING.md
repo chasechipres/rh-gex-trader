@@ -57,6 +57,7 @@ Only the maintainer (and collaborators with write access) can merge. A PR is mer
 
 - CI passes: GitHub Actions runs the tests on Linux, Windows and macOS for every PR, and `main` won't accept
   a merge until all three pass,
+- the branch is up to date with `main` (if `main` moved, click **Update branch** on the PR; CI runs again),
 - the maintainer has reviewed it, and
 - it's one topic with nothing personal in it.
 
