@@ -132,6 +132,8 @@ orders and no open plans, say so in one line and stop (after steps 5 and 6, if t
    fill versus the average cost (or `get_realized_pnl`). This is a tax record only; it blocks nothing.
    **Journal every full exit with its P/L:** `journal TICKER exit --pnl <dollars> --pnl-pct <% of cost>`
    (from the fill versus the average cost, or `get_realized_pnl`). The track record counts only exits with `--pnl`.
+   Then refresh it right away with `record --readme --account-value <get_portfolio total_value>`, so
+   `private/README.md` shows the exit without waiting for the next full cycle.
    **Push plan changes:** whenever `plan add`, `plan raise-stop` or `plan close` changed the plans, or `wash add`
    logged a loss, run `rhgex sync` right away, so other machines never act on stale plans.
 4. Exit when the source clearly flips his view on a holding and your read agrees.
