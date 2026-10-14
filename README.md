@@ -239,6 +239,8 @@ into an empty `private/` with `--from <that commit>`. Then on each other machine
 ## Track your performance
 
 Everything is recorded in your private repo, so you can read it on GitHub from anywhere:
+[**find your private repo**](https://github.com/search?q=rh-gex-trader-private+in%3Aname+user%3A%40me&type=repositories)
+(searches your own repos while you're logged in; if you gave it another name, `rhgex init --check` prints its URL).
 
 | Where | What | Updated by |
 |---|---|---|
