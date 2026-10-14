@@ -46,7 +46,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo '{\"systemMessage\": \"Start the trading day with /trading-day\"}'"
+            "command": "if [ -f \"$CLAUDE_PROJECT_DIR/private/guardrails.toml\" ] && [ -d \"$CLAUDE_PROJECT_DIR/.venv\" ]; then echo '{\"systemMessage\": \"Start the trading day with /trading-day\"}'; else echo '{\"systemMessage\": \"Not set up on this machine yet: run /setup\"}'; fi"
           }
         ]
       }
