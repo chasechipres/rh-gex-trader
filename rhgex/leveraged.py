@@ -13,12 +13,43 @@ FUNDS = {  # fund -> (underlying, daily leverage)
     "NBIL": ("NBIS", 2),   # GraniteShares 2x Long NBIS Daily
     "CRWG": ("CRWV", 2),   # Leverage Shares 2X Long CRWV Daily
     "AMDL": ("AMD", 2),    # GraniteShares 2x Long AMD Daily
+    "GMEU": ("GME", 2),    # T-REX 2X Long GME Daily Target
+    "METU": ("META", 2),   # Direxion Daily META Bull 2X
+    "FBL": ("META", 2),    # GraniteShares 2x Long META Daily
+    "GGLL": ("GOOGL", 2),  # Direxion Daily GOOGL Bull 2X
+    "AMZU": ("AMZN", 2),   # Direxion Daily AMZN Bull 2X
+    "HOOX": ("HOOD", 2),   # Defiance Daily Target 2X Long HOOD
+    "HOOG": ("HOOD", 2),   # Leverage Shares 2X Long HOOD Daily
+    "OKLL": ("OKLO", 2),   # Defiance Daily Target 2x Long OKLO
+    "SMCX": ("SMCI", 2),   # Defiance Daily Target 2X Long SMCI
+    "SMCL": ("SMCI", 2),   # GraniteShares 2x Long SMCI Daily
+    "MUU": ("MU", 2),      # Direxion Daily MU Bull 2X
+    "SOFX": ("SOFI", 2),   # Defiance Daily Target 2X Long SOFI
+    "ARMG": ("ARM", 2),    # Leverage Shares 2X Long ARM Daily
+    "HIMZ": ("HIMS", 2),   # Defiance Daily Target 2X Long HIMS
+    "DLLL": ("DELL", 2),   # GraniteShares 2x Long DELL Daily
+    "ORCX": ("ORCL", 2),   # Defiance Daily Target 2X Long ORCL
+    "ORCU": ("ORCL", 2),   # Direxion Daily ORCL Bull 2X
+    "ASTX": ("ASTS", 2),   # Tradr 2X Long ASTS Daily
+    "CIFU": ("CIFR", 2),   # T-REX 2X Long CIFR Daily Target
+    "CRWU": ("CRWV", 2),   # T-REX 2X Long CRWV Daily Target
+    "ONDL": ("ONDS", 2),   # Defiance Daily Target 2X Long ONDS
     # inverse: a bearish read on the stock without shorting (the account can't short)
     "NVD": ("NVDA", -2),   # GraniteShares 2x Short NVDA Daily
+    "NVDQ": ("NVDA", -2),  # T-Rex 2X Inverse NVIDIA Daily Target
     "TSLQ": ("TSLA", -2),  # Tradr 2X Short TSLA Daily
     "TSLZ": ("TSLA", -2),  # T-Rex 2X Inverse Tesla Daily Target
     "MSTZ": ("MSTR", -2),  # T-Rex 2X Inverse MSTR Daily Target
     "NBIZ": ("NBIS", -2),  # Tradr 2X Short NBIS Daily
+    "SMCZ": ("SMCI", -2),  # Defiance Daily Target 2X Short SMCI
+    "NVDD": ("NVDA", -1),  # Direxion Daily NVDA Bear 1X
+    "TSLS": ("TSLA", -1),  # Direxion Daily TSLA Bear 1X
+    "TSMZ": ("TSM", -1),   # Direxion Daily TSM Bear 1X
+    "AMDD": ("AMD", -1),   # Direxion Daily AMD Bear 1X
+    "METD": ("META", -1),  # Direxion Daily META Bear 1X
+    "GGLS": ("GOOGL", -1),  # Direxion Daily GOOGL Bear 1X
+    "AMZD": ("AMZN", -1),  # Direxion Daily AMZN Bear 1X
+    "MUD": ("MU", -1),     # Direxion Daily MU Bear 1X
 }
 MAX_LEVERAGE = 2           # funds above this (either way) are refused by preflight
 TIME_STOP_DAYS = 5         # trading days a leveraged fund may sit without reaching 1R (daily reset decays it)

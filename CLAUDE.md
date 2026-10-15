@@ -230,11 +230,11 @@ exception, step 1). If there are no positions, no open orders, no open plans and
    - **leveraged funds before plain shares (trial from 2026-10-16, reviewed after 10 trades):** when no option
      fits and the stock has a 2x fund in `rhgex/leveraged.py` (`lev TICKER` lists them), buy the fund instead
      of the stock: the same 5% risk fits in half the cash, which matters when the order cap limits plain
-     shares. Bearish reads (the breakdown trial included) can buy a listed 2x **inverse** fund (NVD, TSLQ...),
+     shares. Bearish reads (the breakdown trial included) can buy a listed **inverse** fund (2x like NVD, or 1x bear funds like METD),
      since the account can't short; its plan is `--direction bearish` on the stock's levels, and `lev` turns
      the stock's stop above into the fund's stop below. Plan, preflight and the exit check stay on the stock's levels (`plan add NVDL ... --price <NVDA>`,
      `exits --price NVDA=PX`); `lev FUND --fund-price PX --price PX --stop PX --target PX --account PX`
-     gives the fund's stop and the size. Rules: 2x long or inverse only; at most 2 open at once; never hold one into the
+     gives the fund's stop and the size. Rules: at most 2x either way (prefer 2x for bullish, either for bearish); at most 2 open at once; never hold one into the
      stock's earnings (EARNINGS_SOON exits it); its time stop is 5 trading days; a gap through the stop costs
      twice the stock's move, so skip names with an event that could gap them. Start the thesis with
      `[leveraged trial]`. Use plain shares when the stock has no listed fund or the fund's spread is wider than
