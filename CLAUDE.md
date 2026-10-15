@@ -265,6 +265,9 @@ exception, step 1). If there are no positions, no open orders, no open plans and
    `trade` (with `--type shares|call|put|spread`, so the track record splits results by trade type), `skip`
    (fails a check, including a setup that clears everything but doesn't fit a limit) or `watch` (not triggered
    yet; name the trigger, and add it with `watch add` so every exit check tests it). No paper trades.
+   **Watch triggers** go just past the level he names (about half an ATR, or the next strike), with the stop
+   just past it the other way, not at the gamma flip or a far reclaim: a trigger far from his level fires after
+   most of the move. Check reward:risk from the trigger price.
 8. **Enter** (regular hours only, 9:35-15:50 ET; 9:35-12:50 ET on early-close days):
    0. **Preflight:** run `preflight TICKER --direction ... --price <live> --stop ... --target ...` (options:
       `--expiration` and one `--leg BID,ASK,OI` per leg from live `get_option_quotes`, the bought leg first; `--source` the post
