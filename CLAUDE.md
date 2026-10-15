@@ -342,6 +342,14 @@ it, and retry only with the **same `ref_id`** so the broker can deduplicate. Aft
 new orders for the cycle, tell the user (`PushNotification` if they may be away; `/mcp` re-authenticates),
 and once the tools work again, confirm every position still has its resting stop before anything else.
 
+**Spreads refused (temporary, [issue #23](https://github.com/chasechipres/rh-gex-trader/issues/23)):** Robinhood's
+MCP currently refuses agent multi-leg orders ("a multi-leg strategy cannot be sent for approval yet") even with
+approvals off. When a vertical is the chosen structure, still place it: that attempt is the check for a fix. If
+it's refused with that error, it's not a Robinhood failure for the 2-failure rule above; don't retry it, and
+never leg into it (a lone long leg breaks the premium cap, a lone short leg looks naked). Use a single leg that
+fits, else shares, else `skip`, and journal why. The first time a spread is accepted, comment on the issue and
+tell the user, so this note can be removed.
+
 ## Hard rules
 
 - Never edit `private/guardrails.toml`, `private/state/`, `.claude/settings.json`, or code to weaken the
