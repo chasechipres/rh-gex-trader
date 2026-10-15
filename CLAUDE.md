@@ -47,7 +47,7 @@ uv run python -m rhgex lev TICKER [--fund-price PX --price PX --stop PX --target
 uv run python -m rhgex lock acquire|release|status                              # one machine at a time
 uv run python -m rhgex peak show                                                 # drawdown baseline (peak reset: user only)
 uv run python -m rhgex journal TICKER trade|skip|watch|exit --thesis "..." --confidence 0.7 --source "..."
-uv run python -m rhgex journal TICKER trade --type shares|call|put|spread ...   # --type is required for trades
+uv run python -m rhgex journal TICKER trade --type shares|lev-long|inverse|call|put|spread ...   # --type is required for trades
 uv run python -m rhgex journal TICKER exit --pnl -6.50 --pnl-pct -40 --thesis "..." --confidence 1
 uv run python -m rhgex calls add TICKER --direction D --setup uptrend-dip|downtrend-dip|breakdown|breakout|range|other --level PX --target PX --invalid PX --source URL --posted "YYYY-MM-DD HH:MM" [--by YYYY-MM-DD]
 uv run python -m rhgex calls check|stats                         # score his open calls; hit rate by setup type
@@ -228,18 +228,22 @@ exception, step 1). If there are no positions, no open orders, no open plans and
      an illiquid or wide chain, earnings inside the usable expiries, or a low-priced name whose chain is
      thin. Say why in the journal when you choose shares.
    - **leveraged funds before plain shares (trial from 2026-10-16, reviewed after 10 trades):** when no option
-     fits and the stock has a 2x fund in `rhgex/leveraged.py` (`lev TICKER` lists them), buy the fund instead
-     of the stock: the same 5% risk fits in half the cash, which matters when the order cap limits plain
-     shares. Bearish reads (the breakdown trial included) can buy a listed **inverse** fund (2x like NVD, or 1x bear funds like METD),
-     since the account can't short; its plan is `--direction bearish` on the stock's levels, and `lev` turns
-     the stock's stop above into the fund's stop below. Plan, preflight and the exit check stay on the stock's levels (`plan add NVDL ... --price <NVDA>`,
-     `exits --price NVDA=PX`); `lev FUND --fund-price PX --price PX --stop PX --target PX --account PX`
-     gives the fund's stop and the size. Rules: at most 2x either way (prefer 2x for bullish, either for bearish); at most 2 open at once; never hold one into the
-     stock's earnings (EARNINGS_SOON exits it); its time stop is 5 trading days; a gap through the stop costs
-     twice the stock's move, so skip names with an event that could gap them. Start the thesis with
-     `[leveraged trial]`. Preflight checks the fund's liquidity (`--quote BID,ASK` from a live Robinhood quote): its spread must be
-     at most 5% of the distance to the fund's stop, and it must trade at least $5M a day. If it fails, or the
-     stock has no listed fund, use plain shares (or skip).
+     fits, the stock has a fund in `rhgex/leveraged.py` (`lev TICKER` lists them), and plain shares would be
+     capped below the 5% risk (`size` reports `capped_by`), buy a 2x fund instead of the stock: the same risk
+     fits in half the cash. When plain shares already take the full 5% under the cap, buy the stock; a fund
+     would add gap risk and decay for nothing.
+     - **Bearish reads** (the breakdown trial included) buy a listed **inverse** fund (2x like NVD, or a 1x
+       bear fund like METD), since the account can't short. Its plan is `--direction bearish` on the stock's
+       levels, and `lev` turns the stock's stop above into the fund's stop below.
+     - **Plan, preflight and the exit check stay on the stock's levels** (`plan add NVDL ... --price <NVDA>`,
+       `exits --price NVDA=PX`); `lev FUND --fund-price PX --price PX --stop PX --target PX --account PX`
+       gives the fund's stop and the size.
+     - **Rules:** at most 2x either way; at most 2 open at once; never hold one into the stock's earnings
+       (EARNINGS_SOON exits it); its time stop is 5 trading days; a gap through the stop costs twice the
+       stock's move, so skip names with an event that could gap them. Start the thesis with `[leveraged trial]`.
+     - **Liquidity:** preflight checks it from the fund's live `--quote BID,ASK`: the spread must be at most 5%
+       of the distance to the fund's stop, and the fund must trade at least $5M a day. If it fails, or the
+       stock has no listed fund, use plain shares (or skip).
    - **find the structure with `fit`:** `fit TICKER --direction D --target PX --budget <5% of the account>`
      lists the liquid calls/puts and debit verticals that cost no more than the budget and pay at the target,
      best return first. On a small account most single legs on high-priced names won't fit; a narrow vertical
@@ -276,7 +280,8 @@ exception, step 1). If there are no positions, no open orders, no open plans and
 7. **Journal every decision**, traded or skipped, with `rhgex journal`, citing the post that prompted it
    (`--source` must be the link of a post saved in `private/notes/posts/`; the tool refuses anything else, so save
    the post first and copy its link from the note, never from memory):
-   `trade` (with `--type shares|call|put|spread`, so the track record splits results by trade type), `skip`
+   `trade` (with `--type shares|lev-long|inverse|call|put|spread`: `lev-long` for a 2x long fund, `inverse` for any
+   inverse fund, so the track record splits results by trade type), `skip`
    (fails a check, including a setup that clears everything but doesn't fit a limit) or `watch` (not triggered
    yet; name the trigger, and add it with `watch add` so every exit check tests it). No paper trades.
    **Watch triggers** go just past the level he names (about half an ATR, or the next strike), with the stop

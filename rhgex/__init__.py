@@ -289,7 +289,7 @@ def cmd_journal(args) -> None:
     except ValueError as e:
         sys.exit(f"refused: {e}")
     if args.action == "trade" and not args.type:
-        sys.exit("refused: a trade entry needs --type (shares, call, put or spread) for the track record")
+        sys.exit("refused: a trade entry needs --type (shares, lev-long, inverse, call, put or spread) for the track record")
     try:
         paths.ensure(LOG_DIR)
     except FileNotFoundError as e:
@@ -463,7 +463,7 @@ def main() -> None:
     j.add_argument("--thesis", required=True)
     j.add_argument("--confidence", type=float, required=True, help="0-1")
     j.add_argument("--source", default="", help="e.g. the X post date/link the idea came from")
-    j.add_argument("--type", choices=["shares", "call", "put", "spread"],
+    j.add_argument("--type", choices=["shares", "lev-long", "inverse", "call", "put", "spread"],
                    help="trade (required): what was bought, for the track record's by-type split")
     j.add_argument("--pnl", type=float, help="exit: realized P/L in dollars (negative for a loss)")
     j.add_argument("--pnl-pct", type=float, help="exit: realized P/L as a % of the position's cost")
