@@ -45,13 +45,16 @@ decides, but every Robinhood call passes through `rhgex hook pre` first, and any
 refused. That split is what makes it safe to run unattended: judgment can be wrong, the limits can't be argued with.
 
 The source is an input, not an order: most ideas are skipped, and every decision is journaled with the post
-behind it. Three cycles a day (about 10:15am, 12:30pm and 3:00pm ET) read new posts and trade; between them, an
-exit check watches stops, targets and triggers. The full rules are in [CLAUDE.md](CLAUDE.md).
+behind it. Trades are swing trades of days to two weeks, each sized so a full loss costs 5% of the account,
+using options when they fit, else 2x funds or shares ([why](docs/strategy.md)). Three cycles a day (about
+10:15am, 12:30pm and 3:00pm ET) read new posts and trade; between them, an exit check watches stops, targets
+and triggers. The full rules are in [CLAUDE.md](CLAUDE.md).
 
 ## Docs
 
 | Doc | Read it when |
 |---|---|
+| [Strategy](docs/strategy.md) | why it trades this way: risk per trade, options vs. funds vs. shares, small-account limits |
 | [Setup and settings](docs/setup.md) | installing, what's in `private/`, changing limits or preferences |
 | [Running it](docs/running.md) | the commands and a normal day, more than one machine, your track record, troubleshooting |
 | [Guardrails, exits and taxes](docs/safety.md) | what the hook blocks, how positions get out, wash sales |

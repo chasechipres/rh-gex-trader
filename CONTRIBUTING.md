@@ -30,7 +30,7 @@ rh-gex-trader/              shared (this repo)
 ├── .mcp.json               Robinhood MCP server (URL only, no credentials)
 ├── .claude/                guardrail hooks, permission lists, the /setup and /trading-day skills
 ├── .githooks/pre-commit    secret scan (both repos) + tests (this repo)
-├── docs/                   setup, running it, guardrails and exits, the 24/7 cloud server
+├── docs/                   strategy, setup, running it, guardrails and exits, the 24/7 cloud server
 ├── rhgex/
 │   ├── __init__.py         the command line
 │   ├── paths.py            where everything lives
