@@ -7,6 +7,7 @@
   blocks    show active wash-sale blocks, logged wash-sale windows and limits
   wash      log a loss exit and its 30-day wash-sale window (logging only), or list them
   watch     price triggers for journaled watches, checked every exit check
+  calls     the source's calls, scored: hit rate by setup type
   journal   log a trade thesis or decision to private/logs/journal.jsonl
   record    track record: live realized P/L and win rate by confidence (--readme updates private/README.md)
   preflight pre-trade checklist: every mechanical entry rule, before plan add
@@ -267,6 +268,24 @@ def cmd_journal(args) -> None:
     out(entry)
 
 
+def cmd_calls(args) -> None:
+    from . import calls
+
+    if args.action == "add":
+        try:
+            check_source("trade", args.source)
+            out(calls.add(args.symbol, args.direction, args.setup, args.level, args.target, args.invalid,
+                          args.source, args.by, args.posted, args.note))
+        except ValueError as e:
+            sys.exit(f"refused: {e}")
+    elif args.action == "check":
+        out(calls.check())
+    elif args.action == "stats":
+        out(calls.stats(calls.load()))
+    else:
+        out([c for c in calls.load() if c["result"] == "open"])
+
+
 def cmd_record(args) -> None:
     from . import exits, record
 
@@ -401,6 +420,19 @@ def main() -> None:
     j.add_argument("--pnl", type=float, help="exit: realized P/L in dollars (negative for a loss)")
     j.add_argument("--pnl-pct", type=float, help="exit: realized P/L as a % of the position's cost")
 
+    cl = sub.add_parser("calls", help="the source's calls, scored on daily highs/lows: add, check, stats, list")
+    cl.add_argument("action", choices=["add", "check", "stats", "list"])
+    cl.add_argument("symbol", nargs="?", default="")
+    cl.add_argument("--direction", choices=["bullish", "bearish"])
+    cl.add_argument("--setup", choices=["uptrend-dip", "downtrend-dip", "breakdown", "breakout", "range", "other"])
+    cl.add_argument("--level", type=float, help="the level the call is made from (pivot, entry, king)")
+    cl.add_argument("--target", type=float, help="his target")
+    cl.add_argument("--invalid", type=float, help="the price that proves the call wrong")
+    cl.add_argument("--by", help="deadline YYYY-MM-DD (default: 5 trading days after the post)")
+    cl.add_argument("--posted", help="post date YYYY-MM-DD (default today)")
+    cl.add_argument("--source", default="", help="the post link (saved in private/notes/posts/)")
+    cl.add_argument("--note", default="")
+
     rec = sub.add_parser("record", help="track record: live realized P/L")
     rec.add_argument("--readme", action="store_true", help="rewrite the track-record block in private/README.md")
     rec.add_argument("--account-value", type=float, help="current account value (from get_portfolio)")
@@ -434,8 +466,12 @@ def main() -> None:
         p.error("watch add/close needs a symbol")
     if args.cmd == "watch" and args.action == "add" and args.above is None and args.below is None:
         p.error("watch add needs --above or --below")
+    if args.cmd == "calls" and args.action == "add" and (
+            not args.symbol or None in (args.direction, args.setup, args.level, args.target, args.invalid)):
+        p.error("calls add needs a symbol, --direction, --setup, --level, --target and --invalid")
     if args.cmd == "wash" and args.action == "add" and (not args.symbol or args.loss is None):
         p.error("wash add needs a symbol and --loss")
     {"research": cmd_research, "gex": cmd_gex, "check": cmd_check, "blocks": cmd_blocks,
-     "fit": cmd_fit, "plan": cmd_plan, "exits": cmd_exits, "wash": cmd_wash, "watch": cmd_watch, "journal": cmd_journal, "record": cmd_record, "size": cmd_size,
+     "fit": cmd_fit, "plan": cmd_plan, "exits": cmd_exits, "wash": cmd_wash, "watch": cmd_watch, "journal": cmd_journal,
+     "record": cmd_record, "calls": cmd_calls, "size": cmd_size,
      "lock": cmd_lock, "peak": cmd_peak, "preflight": cmd_preflight, "init": cmd_init, "sync": cmd_sync}[args.cmd](args)

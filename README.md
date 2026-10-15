@@ -334,6 +334,7 @@ rh-gex-trader/              shared (this repo)
 │   ├── preflight.py        pre-trade checklist
 │   ├── lock.py             one machine at a time
 │   ├── record.py           track record
+│   ├── calls.py            the source's calls, scored
 │   ├── washlog.py          wash-sale log (logging only)
 │   ├── market.py           technicals + fundamentals (Yahoo Finance)
 │   ├── indicators.py       EMA, RSI, ATR
