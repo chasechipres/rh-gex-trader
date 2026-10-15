@@ -181,7 +181,8 @@ you decide.
 **A day:** type `/trading-day` around 10:15am ET. It schedules cycles at about 12:30 and 3:00pm ET (when the
 source posts most) plus the exit loop, which stops after the close and schedules tomorrow's 10:13am cycle. Leave
 the session open and the computer awake; it keeps going day to day. Orders go in only 9:35am–3:50pm ET.
-`/model sonnet` stretches a Pro plan.
+`/model sonnet` stretches a Pro plan. To run it around the clock without leaving your own computer on, see
+[Run it 24/7 on a free cloud server](docs/cloud.md).
 
 The tools work on their own too:
 
@@ -321,6 +322,7 @@ rh-gex-trader/              shared (this repo)
 ├── .mcp.json               Robinhood MCP server (URL only, no credentials)
 ├── .claude/                guardrail hooks, permission lists, the /setup and /trading-day skills
 ├── .githooks/pre-commit    secret scan (both repos) + tests (this repo)
+├── docs/cloud.md           run it 24/7 on a free Oracle Cloud server
 ├── rhgex/
 │   ├── __init__.py         the command line
 │   ├── paths.py            where everything lives

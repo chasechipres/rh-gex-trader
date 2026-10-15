@@ -14,7 +14,7 @@ Follow the README's [Setup](README.md#setup), then type `/setup` in `claude`. Yo
 |---|---|---|
 | Code, the hook, tools | `rhgex/`, with tests in `tests/` | `feat/…` or `fix/…` |
 | How Claude trades (the playbook) | `CLAUDE.md`, `.claude/` | `rules/…` |
-| Docs | `README.md`, this file | `docs/…` |
+| Docs | `README.md`, `docs/`, this file | `docs/…` |
 | Defaults for new users | `templates/private/` | `feat/…` |
 | **Your own** limits, notes, preferences | `private/` (your private repo, never a PR here) | - |
 
