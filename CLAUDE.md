@@ -75,7 +75,8 @@ assumption. Use it to cross-check the source's levels, not to replace them.
 Run this first in every cycle. It's also a cycle on its own: "run an exit check per CLAUDE.md".
 
 Keep looped exit checks cheap: don't read X or run research in them (a triggered watch is the one
-exception, step 1). If there are no positions, no open orders, no open plans and no open watches, say so in one line and stop (after steps 5 and 6, if they apply).
+exception, step 1). If there are no positions, no open orders, no open plans and no open watches, say so in
+one line and stop (after steps 5 and 6, if they apply).
 
 1. `git pull` (code and rules), then `uv sync` (dependencies), and `rhgex sync --pull` first: exit plans
    (`private/state/plans.json`) and the order ledger are synced, and another machine may have changed them.
@@ -198,17 +199,13 @@ exception, step 1). If there are no positions, no open orders, no open plans and
    `breakout` for a lost or reclaimed level. A conditional call ("lose 723 and it's 716") gets its trigger,
    `--below 723` (or `--above`), so it's scored only once price gets there; log both sides of a two-sided pivot
    as two calls. `calls stats` is his hit rate by setup: weigh his posts with it.
-4. **Check the account:** call `get_portfolio` for the agentic account (the hook records its value, and the
-   percentage limits refuse every entry until it has today's), then buying power and today's P&L. If today's
-   realized + unrealized loss is 20% or more of the account's value at the start of the day, place no new
-   trades this cycle. The hook enforces this too: it keeps the day's first `get_portfolio` value and refuses
-   entries once the latest one is down `max_daily_loss_pct` (default 20%); exits always pass. A mid-day
-   deposit or withdrawal skews that baseline, so tell the user if one happened.
-   **Drawdown pause:** the hook also tracks the account's highest recorded value (`peak show`) and refuses
-   entries once the latest value is `max_drawdown_pct` (default 30%) below it. When it trips, place no
-   entries, notify the user, and write up what went wrong. Only the user resumes it: `peak reset` is theirs
-   to run (or to tell you to run in this session), never yours to decide. A withdrawal also lowers the
-   value; ask the user to reset the peak after one.
+4. **Check the account:** call `get_portfolio` (the hook needs today's value before any entry), then buying
+   power and today's P&L. The hook refuses entries once the account is `max_daily_loss_pct` (default 20%)
+   below its first value of the day, or `max_drawdown_pct` (default 30%) below its peak (`peak show`); exits
+   always pass. When either trips, place no entries, notify the user, and (for the drawdown pause) write up
+   what went wrong. Only the user resumes the pause: `peak reset` is theirs to run or to ask you to run. A
+   deposit or withdrawal skews both baselines, so tell the user if one happened (after a withdrawal, ask
+   them to reset the peak).
 5. **Research every candidate** with `research TICKER --gex`. Run `blocks` first and drop anything blocked.
    A logged wash-sale window (`wash_sale_window`) is a warning, not a block: re-entering is allowed, but say
    so in the journal entry.
@@ -226,10 +223,10 @@ exception, step 1). If there are no positions, no open orders, no open plans and
    - options: prefer 14-45 DTE (7-13 when the expiry ends before an earnings report that falls inside 45 days;
      `preflight` allows it), liquid strikes (tight bid/ask, real open interest), defined risk only
      (long calls/puts or 1:1 verticals). Use limit orders at or near the mid.
-   - **options first:** this is a high-growth account, so express trades with options whenever a liquid
-     structure fits (verticals for expensive names or to cut cost). Use shares only when no option fits:
-     an illiquid or wide chain, earnings inside the usable expiries, or a low-priced name whose chain is
-     thin. Say why in the journal when you choose shares.
+   - **structure, in this order** ([docs/strategy.md](docs/strategy.md) has the why): an **option** that fits
+     (`fit`; a vertical for an expensive name), else a **leveraged fund** when plain shares would be capped
+     below the 5% risk (next bullet), else **plain shares**, else `skip`. Say in the journal why options didn't
+     fit when you choose a fund or shares.
    - **leveraged funds before plain shares (trial from 2026-10-16, reviewed after 10 trades):** when no option
      fits, the stock has a fund in `rhgex/leveraged.py` (`lev TICKER` lists them), and plain shares would be
      capped below the 5% risk (`size` reports `capped_by`), buy a 2x fund instead of the stock: the same risk
@@ -241,8 +238,8 @@ exception, step 1). If there are no positions, no open orders, no open plans and
      - **Plan, preflight and the exit check stay on the stock's levels** (`plan add NVDL ... --price <NVDA>`,
        `exits --price NVDA=PX`); `lev FUND --fund-price PX --price PX --stop PX --target PX --account PX`
        gives the fund's stop and the size.
-     - **Rules:** at most 2x either way; at most 2 open at once (preflight checks it); never hold one into the stock's earnings
-       (EARNINGS_SOON exits it); its time stop is 5 trading days; a gap through the stop costs twice the
+     - **Rules:** at most 2x either way; at most 2 open at once (preflight checks it); never hold one into the
+       stock's earnings (EARNINGS_SOON exits it); its time stop is 5 trading days; a gap through the stop costs twice the
        stock's move, so skip names with an event that could gap them. Start the thesis with `[leveraged trial]`.
      - **Liquidity:** preflight checks it from the fund's live `--quote BID,ASK`: the spread must be at most 5%
        of the distance to the fund's stop, and the fund must trade at least $5M a day. If it fails, or the
@@ -251,10 +248,10 @@ exception, step 1). If there are no positions, no open orders, no open plans and
      lists the liquid calls/puts and debit verticals that cost no more than the budget and pay at the target,
      best return first. On a small account most single legs on high-priced names won't fit; a narrow vertical
      ($1-$5 wide) often does. Quotes are delayed, so re-quote the pick on Robinhood before `preflight`. If
-     `fit` finds nothing, try another expiry window, then a leveraged fund or shares, else `skip`.
+     `fit` finds nothing, try another expiry window before moving down the order.
    - **liquid means:** every leg has a bid/ask spread of at most 10% of its mid or $0.05, whichever is wider,
      and the leg you buy has open interest of at least 500 (a spread's sold leg: 100). If a strike fails, try
-     a nearby strike or expiry, then a leveraged fund or shares, else `skip`.
+     a nearby strike or expiry before moving down the order.
    - **strikes:** single calls/puts at or slightly in the money (delta ~0.45-0.60), so a move to the target
      pays. Spreads buy near the money and sell the short leg at or before the plan's target or the call wall
      (put wall for bearish), where dealers tend to pin price; narrow the width until the debit fits the budget.
@@ -350,15 +347,11 @@ exception, step 1). If there are no positions, no open orders, no open plans and
 
 ## Running it
 
-- The normal day is three full cycles, timed to when the source posts (most posts land 8:00-12:00 ET,
-  peaking 9-10). The user starts the first, `run a trading cycle per CLAUDE.md`, at about 10:15 ET.
-  It schedules the 12:33 and 15:03 ET cycles and the self-paced exit loop (step 10). The user may ask for
-  extra cycles; don't schedule more than these on your own.
-- After 16:00 ET, an exit check that finds the market closed ends its own loop so it
-  doesn't run overnight, and schedules the next morning's cycle. A session left open therefore keeps
-  going day to day. A cycle run in the evening also just schedules the next morning (step 10).
-- Scheduled jobs live only in the open session: closing it or the computer sleeping drops them.
-- If no session is running, only the resting stop orders protect positions. Don't leave positions without them.
+Three full cycles a day (10:13, 12:33 and 15:03 ET; the user starts the first, the rest schedule themselves in
+step 10) plus the self-paced exit loop, which ends itself after the close and schedules the next morning. Don't
+add cycles on your own. Scheduled jobs live only in the open session (closing it or the computer sleeping drops
+them), so when none is running only the resting
+stop orders protect positions: never leave a position without one.
 
 ## When Robinhood fails
 
@@ -372,9 +365,9 @@ and once the tools work again, confirm every position still has its resting stop
 MCP currently refuses agent multi-leg orders ("a multi-leg strategy cannot be sent for approval yet") even with
 approvals off. When a vertical is the chosen structure, still place it: that attempt is the check for a fix. If
 it's refused with that error, it's not a Robinhood failure for the 2-failure rule above; don't retry it, and
-never leg into it (a lone long leg breaks the premium cap, a lone short leg looks naked). Use a single leg that
-fits, else a leveraged fund or shares, else `skip`, and journal why. The first time a spread is accepted, comment on the issue and
-tell the user, so this note can be removed.
+never leg into it (a lone long leg breaks the premium cap, a lone short leg looks naked). Move down the
+structure order (a single leg that fits, a fund, shares, `skip`) and journal why. The first time a spread is
+accepted, comment on the issue and tell the user, so this note can be removed.
 
 ## Hard rules
 
@@ -394,21 +387,8 @@ tell the user, so this note can be removed.
 
 ## Changing this repo
 
-`main` on GitHub is protected: every change to the public repo goes through a pull request (no direct pushes,
-no force-pushes). Without write access, push the branch to your fork and open the PR from there. `private/` is
-separate and still syncs with `rhgex sync`.
-
-- **Branch** off an up-to-date `main`: `feat/…`, `fix/…`, `docs/…` or `rules/…` (for `CLAUDE.md` changes).
-  One topic per branch; keep unrelated fixes in their own PR.
-- **Commits:** short imperative subject (≤ 72 chars, e.g. "Add stale-rules check to exit step 1"), with a
-  body only when the why isn't obvious. No `Co-Authored-By` or other Claude attribution lines.
-- **Test** before opening it: `uv run pytest`. Changes to the hook or guardrails need a test that covers them.
-- **PR title** like a commit subject. **PR body**, in this order:
-  - **Summary:** what changes and why, in 1-3 sentences.
-  - **Changes:** a bullet per file or behavior, naming the file.
-  - **Trading impact:** what this changes about orders, limits, exits or the cycle, or "none". Note that a
-    `CLAUDE.md` or `.claude/` change makes running sessions ask for a restart.
-  - **Testing:** the commands run and their result (e.g. `uv run pytest`: 84 passed), plus anything checked
-    by hand.
-- Nothing personal in the public repo: no account values, positions, journal entries or private-repo links.
-- Merge with **squash** once it's green and reviewed; delete the branch afterward.
+Follow [CONTRIBUTING.md](CONTRIBUTING.md): `main` is protected, so every change is a branch (`feat/`, `fix/`,
+`docs/`, or `rules/` for `CLAUDE.md`) and a squash-merged pull request whose body has Summary, Changes, Trading
+impact and Testing. Run `uv run pytest` first; hook or guardrail changes need a test. Never add `Co-Authored-By`
+or other Claude attribution lines, and nothing personal goes in the public repo. `private/` syncs with
+`rhgex sync`, never through a PR.
