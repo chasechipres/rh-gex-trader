@@ -55,6 +55,9 @@ uv run python -m rhgex plan add TICKER --asset stock|option --direction bullish|
 uv run python -m rhgex plan raise-stop TICKER --stop PX          # tighten the underlying stop (never loosens)
 uv run python -m rhgex plan close TICKER --reason "..."          # after the position is fully closed
 uv run python -m rhgex plan list
+uv run python -m rhgex watch add TICKER --above|--below PX --note "..." --source URL [--until YYYY-MM-DD]  # a watch's trigger
+uv run python -m rhgex watch check --price TICKER=PX ...         # open triggers vs price: TRIGGERED/WAITING/EXPIRED
+uv run python -m rhgex watch close TICKER --reason "..."         # entered, skipped or the setup died
 uv run python -m rhgex exits [--price TICKER=PX ...]             # open plans vs price: STOP_HIT/TARGET_HIT/AT_1R/EXPIRING/EARNINGS_SOON/TIME_STOP
 ```
 
@@ -68,8 +71,8 @@ assumption. Use it to cross-check the source's levels, not to replace them.
 
 Run this first in every cycle. It's also a cycle on its own: "run an exit check per CLAUDE.md".
 
-Keep looped exit checks cheap: don't read X or run research in them. If there are no positions, no open
-orders and no open plans, say so in one line and stop (after steps 5 and 6, if they apply).
+Keep looped exit checks cheap: don't read X or run research in them (a triggered watch is the one
+exception, step 1). If there are no positions, no open orders, no open plans and no open watches, say so in one line and stop (after steps 5 and 6, if they apply).
 
 1. `git pull` (code and rules), then `uv sync` (dependencies), and `rhgex sync --pull` first: exit plans
    (`private/state/plans.json`) and the order ledger are synced, and another machine may have changed them.
@@ -81,6 +84,10 @@ orders and no open plans, say so in one line and stop (after steps 5 and 6, if t
    Then read positions and open orders with the Robinhood tools (`get_equity_positions`,
    `get_option_positions` nonzero, `get_equity_orders` / `get_option_orders`), quotes for each holding, and
    `get_portfolio` (only when something is held) so the hook's daily-loss stop sees the current value.
+   **Watches:** also quote every symbol in `watch list` and run `watch check --price SYM=PX ...`. A
+   `TRIGGERED` watch is a candidate now: before 15:50 ET (and with the session lock), run full-cycle steps
+   5-8 for that symbol alone (research, decide, journal, enter), then `watch close` it either way. This is the
+   only part of an exit check that may run research. `EXPIRED` watches close themselves.
 2. Run `exits --price SYM=PX ...` with those quotes. When several signals or rules apply to one position,
    act in this order, and when two conflict take the more protective one: **stop hit > EXPIRING or
    EARNINGS_SOON > TIME_STOP > fading thesis > target or +100% (sell half) > trailing**. For each plan:
@@ -153,8 +160,8 @@ orders and no open plans, say so in one line and stop (after steps 5 and 6, if t
    `run an exit check per CLAUDE.md`, and `delaySeconds` set by what's held now:
    - **900 (15 min):** any spread, fractional-share position, position without a working resting stop, or
      unfilled opening order. The exit check is their only stop.
-   - **1800 (30 min):** positions, all with resting stops.
-   - **3600 (60 min):** no positions, no open orders, no open plans.
+   - **1800 (30 min):** positions, all with resting stops, or open watches.
+   - **3600 (60 min):** no positions, no open orders, no open plans, no open watches.
    Never let the wakeup land later than about 16:05 ET; shorten the delay so one check runs just after the
    close and ends the loop (step 5). Set `noop: true` when the check changed nothing.
    **Early-close days** (the market closes at 13:00 ET, e.g. the day after Thanksgiving and Christmas Eve):
@@ -240,7 +247,7 @@ orders and no open plans, say so in one line and stop (after steps 5 and 6, if t
    the post first and copy its link from the note, never from memory):
    `trade` (with `--type shares|call|put|spread`, so the track record splits results by trade type), `skip`
    (fails a check, including a setup that clears everything but doesn't fit a limit) or `watch` (not triggered
-   yet; name the trigger). No paper trades.
+   yet; name the trigger, and add it with `watch add` so every exit check tests it). No paper trades.
 8. **Enter** (regular hours only, 9:35-15:50 ET; 9:35-12:50 ET on early-close days):
    0. **Preflight:** run `preflight TICKER --direction ... --price <live> --stop ... --target ...` (options:
       `--expiration` and one `--leg BID,ASK,OI` per leg from live `get_option_quotes`, the bought leg first; `--source` the post

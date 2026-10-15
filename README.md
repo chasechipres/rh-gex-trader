@@ -328,6 +328,7 @@ rh-gex-trader/              shared (this repo)
 │   ├── hook.py             pre/post hooks on every Robinhood call
 │   ├── guardrails.py       order checks
 │   ├── exits.py            exit plans and the exit check
+│   ├── watches.py          watch triggers, checked every exit check
 │   ├── dailyloss.py        daily loss stop and drawdown pause
 │   ├── sizing.py           position size for a fixed % risk
 │   ├── preflight.py        pre-trade checklist
