@@ -19,6 +19,7 @@ MIN_SPREAD = 0.05         # ... or this many dollars, whichever is wider (a nick
 MIN_OPEN_INTEREST = 500   # the leg you buy (the first --leg)
 MIN_SHORT_OPEN_INTEREST = 100  # a spread's sold leg: further out of the money, so thinner
 DTE_RANGE = (14, 45)      # preferred days to expiry for options
+PRE_EARNINGS_MIN_DTE = 7  # shorter expiries are allowed when they end before an earnings report inside the range
 FRESH_POST_DAYS = 2       # trading days
 REVENGE_DAYS = 2          # trading days after a losing exit
 EARNINGS_SOON_DAYS = 3    # trading days, for shares
@@ -100,7 +101,12 @@ def evaluate(c: Candidate, ctx: Context) -> list[dict]:
             exp = date.fromisoformat(c.expiration)
             dte = (exp - ctx.today).days
             lo, hi = DTE_RANGE
-            add("dte", lo <= dte <= hi, f"{dte} days (prefer {lo}-{hi})")
+            # earnings season: when a report lands inside the usual window, an expiry before it may be shorter
+            pre_earnings = (er is not None and PRE_EARNINGS_MIN_DTE <= dte < lo and exp < er
+                            and (er - ctx.today).days <= hi)
+            add("dte", lo <= dte <= hi or pre_earnings,
+                f"{dte} days (prefer {lo}-{hi}" + (f"; {PRE_EARNINGS_MIN_DTE}+ ok before earnings {er})"
+                                                   if pre_earnings else ")"))
             inside = er is not None and ctx.today <= er <= exp
             add("earnings", not inside or c.earnings_play,
                 f"earnings {er} before expiry {exp}" + (" (earnings play)" if inside and c.earnings_play else "")
