@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
 
-from . import exits
+from . import exits, leveraged
 
 MAX_OPEN_AT_RISK = 5      # open positions whose stop is still below breakeven
 MAX_PER_SECTOR = 2        # open positions in one sector
@@ -39,6 +39,7 @@ class Candidate:
     source: str = ""
     earnings_play: bool = False
     new_setup: bool = False
+    quote: tuple[float, float] | None = None  # a leveraged fund's live (bid, ask)
 
 
 @dataclass
@@ -52,6 +53,25 @@ class Context:
     max_new_per_day: int
     earnings: object = None           # symbol -> date | None
     sector: object = None             # symbol -> str | None
+    dollar_volume: object = None      # symbol -> average daily dollar volume | None
+
+
+def fund_liquidity(c: Candidate, ctx: Context, leverage: float) -> tuple[str, bool, str]:
+    """A leveraged fund's spread must be a small share of its risk (entry to stop), and it must trade enough that
+    a stop-out fills near the stop."""
+    if not c.quote:
+        return "fund_liquidity", False, "pass the fund's live quote as --quote BID,ASK"
+    bid, ask = c.quote
+    mid = (bid + ask) / 2
+    risk = abs(mid - leveraged.fund_level(mid, c.price, c.stop, leverage))
+    dv = ctx.dollar_volume(c.symbol.upper()) if ctx.dollar_volume else None
+    spread_ok = risk > 0 and (ask - bid) <= leveraged.MAX_SPREAD_OF_RISK * risk
+    volume_ok = dv is not None and dv >= leveraged.MIN_DOLLAR_VOLUME
+    detail = (f"spread ${ask - bid:.2f} = {(ask - bid) / risk:.0%} of the ${risk:.2f} risk to the fund's stop "
+              f"(max {leveraged.MAX_SPREAD_OF_RISK:.0%}); "
+              + (f"${dv / 1e6:.1f}M/day" if dv is not None else "volume unknown")
+              + f" (min ${leveraged.MIN_DOLLAR_VOLUME / 1e6:g}M)") if risk > 0 else "fund stop equals its price"
+    return "fund_liquidity", spread_ok and volume_ok, detail
 
 
 def _days_ago(d: date, today: date) -> int:
@@ -85,7 +105,17 @@ def evaluate(c: Candidate, ctx: Context) -> list[dict]:
         checks.append({"check": name, "ok": ok, "detail": detail})
 
     sym = c.symbol.upper()
-    add("blocked", sym not in ctx.blocks, ctx.blocks.get(sym, "not blocked"))
+    fund = leveraged.underlying(sym) if c.asset == "stock" else None
+    stock = fund[0] if fund else sym  # a leveraged fund is checked on its stock: earnings, sector, blocks
+    blocked = sym if sym in ctx.blocks else stock if stock in ctx.blocks else None
+    add("blocked", blocked is None, f"{blocked}: {ctx.blocks[blocked]}" if blocked else "not blocked")
+    if fund:
+        add("leverage", abs(fund[1]) <= leveraged.MAX_LEVERAGE,
+            f"{fund[1]}x fund on {stock} (max {leveraged.MAX_LEVERAGE}x; time stop {leveraged.TIME_STOP_DAYS} "
+            "trading days); --price/--stop/--target are the stock's")
+        needs = "bullish" if fund[1] > 0 else "bearish"  # a long fund needs the stock up, an inverse one down
+        add("fund_direction", c.direction == needs, f"{sym} gains when {stock} is {needs}; the plan says {c.direction}")
+        add(*fund_liquidity(c, ctx, fund[1]))
 
     try:
         rr = exits.reward_risk(c.direction, c.price, c.stop, c.target)
@@ -93,7 +123,7 @@ def evaluate(c: Candidate, ctx: Context) -> list[dict]:
     except ValueError as e:
         add("reward_risk", False, str(e))
 
-    er = ctx.earnings(sym) if ctx.earnings else None
+    er = ctx.earnings(stock) if ctx.earnings else None
     if c.asset == "option":
         if not c.expiration:
             add("expiration", False, "options need --expiration")
@@ -124,8 +154,8 @@ def evaluate(c: Candidate, ctx: Context) -> list[dict]:
         f"{len(risky)} open positions still at risk (max {MAX_OPEN_AT_RISK}): {', '.join(risky) or 'none'}")
 
     if ctx.sector:
-        mine = ctx.sector(sym)
-        same = [p["symbol"] for p in ctx.plans if mine and ctx.sector(p["symbol"]) == mine]
+        mine = ctx.sector(stock)
+        same = [p["symbol"] for p in ctx.plans if mine and ctx.sector(p.get("underlying") or p["symbol"]) == mine]
         add("sector", len(same) < MAX_PER_SECTOR,
             f"{mine or 'unknown sector'}: {len(same)} open ({', '.join(same) or 'none'}), max {MAX_PER_SECTOR}; "
             "themes (AI, crypto miners) are your call")

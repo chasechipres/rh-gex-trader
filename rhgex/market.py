@@ -59,6 +59,15 @@ def technicals(symbol: str) -> dict:
     }
 
 
+def dollar_volume(symbol: str, days: int = 20) -> float | None:
+    """Average daily dollar volume (close x volume) over the last `days` sessions, or None."""
+    try:
+        h = yf.Ticker(yahoo_symbol(symbol)).history(period="2mo").tail(days)
+        return float((h["Close"] * h["Volume"]).mean()) if len(h) else None
+    except Exception:
+        return None
+
+
 def next_earnings(symbol: str, today: date | None = None):
     """The next earnings date (a date), or None when Yahoo has none or the lookup fails. Yahoo's calendar keeps a
     report's date through the day it comes out, so a date of today or earlier whose EPS is already reported (a

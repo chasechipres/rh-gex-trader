@@ -63,6 +63,14 @@ class TradeType(unittest.TestCase):
         self.assertEqual(types, {"NVDA": "spread", "GME": "shares", "KTOS": "unknown", "TSLA": "put",
                                  "SOFI": "call"})
 
+    def test_fund_types_from_the_plan(self):
+        exit_ = {"symbol": "NVDL", "time": "2026-10-20T12:00:00", "action": "exit", "pnl": 10}
+        plans = lambda lev: [{"symbol": "NVDL", "asset": "stock", "direction": "bullish", "leverage": lev,  # noqa: E731
+                              "opened": "2026-10-16T10:00:00"}]
+        self.assertEqual(record.trade_type(exit_, [], plans(2)), "lev-long")
+        self.assertEqual(record.trade_type(exit_, [], plans(-2)), "inverse")
+        self.assertEqual(record.trade_type(exit_, [], plans(None)), "shares")
+
     def test_by_type_table(self):
         s = record.summarize(self.ENTRIES, self.PLANS)
         self.assertEqual([t["type"] for t in s["by_type"]], ["shares", "call", "put", "spread", "unknown"])

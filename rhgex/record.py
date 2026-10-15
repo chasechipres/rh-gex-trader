@@ -1,5 +1,5 @@
 """Track record: realized P/L from closed trades (`journal exit --pnl`), split by the entry's confidence and by
-trade type (shares, call, put or spread).
+trade type (shares, a leveraged long fund, an inverse fund, call, put or spread).
 
 `rhgex record --readme` rewrites the block between the track-record markers in private/README.md.
 """
@@ -25,7 +25,7 @@ def load(path: Path = JOURNAL) -> list[dict]:
 BANDS = [("low (<0.4)", 0.0, 0.4), ("mid (0.4-0.6)", 0.4, 0.6), ("high (>=0.6)", 0.6, 1.01)]
 
 
-TYPES = ["shares", "call", "put", "spread"]
+TYPES = ["shares", "lev-long", "inverse", "call", "put", "spread"]  # lev-long: 2x long fund; inverse: any short fund
 
 
 def _entry_trade(exit_entry: dict, entries: list[dict]) -> dict | None:
@@ -42,7 +42,8 @@ def entry_confidence(exit_entry: dict, entries: list[dict]) -> float | None:
 
 def trade_type(exit_entry: dict, entries: list[dict], plans: list[dict] = ()) -> str:
     """The entry's `journal trade --type`; for older entries without one, the latest plan for the symbol opened
-    before the exit (stock -> shares; option -> call if bullish, put if bearish: it can't tell a spread)."""
+    before the exit (stock -> shares, or lev-long/inverse for a leveraged fund; option -> call if bullish, put if
+    bearish: it can't tell a spread)."""
     trade = _entry_trade(exit_entry, entries)
     if trade and trade.get("type") in TYPES:
         return trade["type"]
@@ -52,7 +53,8 @@ def trade_type(exit_entry: dict, entries: list[dict], plans: list[dict] = ()) ->
         return "unknown"
     plan = opened[-1]
     if plan.get("asset") == "stock":
-        return "shares"
+        lev = plan.get("leverage")
+        return "shares" if not lev else "lev-long" if lev > 0 else "inverse"
     return {"bullish": "call", "bearish": "put"}.get(plan.get("direction"), "unknown")
 
 

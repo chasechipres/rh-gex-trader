@@ -12,6 +12,7 @@
   record    track record: live realized P/L and win rate by confidence (--readme updates private/README.md)
   preflight pre-trade checklist: every mechanical entry rule, before plan add
   size      contracts or shares for a fixed % risk of the account
+  lev       leveraged funds: a stock's funds, or a fund's stop/target and size
   lock      one machine at a time: acquire|release|status the session lock
   peak      drawdown baseline: show, or reset (owner only)
   init      set up private/ (your limits, notes, journal, plans); --github, --clone, --migrate, --check
@@ -106,14 +107,16 @@ def cmd_preflight(args) -> None:
         bid, ask, oi = leg.split(",")
         legs.append((float(bid), float(ask), int(oi)))
     c = preflight.Candidate(args.symbol, args.direction, args.price, args.stop, args.target, args.asset,
-                            args.expiration, legs, args.source, args.earnings_play, args.new_setup)
+                            args.expiration, legs, args.source, args.earnings_play, args.new_setup,
+                            tuple(float(x) for x in args.quote.split(",")) if args.quote else None)
     ctx = preflight.Context(
         today=date.today(), blocks=guardrails.active_blocks(cfg, date.today()),
         plans=exits.open_plans(exits.load()), journal=record.load(), posts=preflight.saved_posts(POSTS_DIR),
         opened_today=sum(1 for r in hook.ledger_today() if r.get("opening")),
         max_new_per_day=cfg["limits"].get("max_new_positions_per_day", 3),
         earnings=lru_cache(None)(market.next_earnings),
-        sector=lru_cache(None)(lambda s: market.fundamentals(s).get("sector")))
+        sector=lru_cache(None)(lambda s: market.fundamentals(s).get("sector")),
+        dollar_volume=market.dollar_volume)
     checks = preflight.evaluate(c, ctx)
     for ch in checks:
         print(f"{'PASS' if ch['ok'] else 'FAIL'}  {ch['check']:<16} {ch['detail']}")
@@ -157,6 +160,28 @@ def order_cap(account: float) -> float | None:
         return guardrails.limit(guardrails.load()["limits"], "order", account)
     except ValueError:
         return None
+
+
+def cmd_lev(args) -> None:
+    from . import leveraged, sizing
+
+    sym = args.symbol.upper()
+    fund = leveraged.underlying(sym)
+    if not fund:
+        out({"stock": sym, "funds": {f: leveraged.FUNDS[f][1] for f in leveraged.funds_for(sym)}})  # fund -> leverage
+        return
+    stock, lev = fund
+    res = {"fund": sym, "underlying": stock, "leverage": lev}
+    if args.fund_price is not None and args.price is not None:
+        conv = lambda lvl: leveraged.fund_level(args.fund_price, args.price, lvl, lev)  # noqa: E731
+        res.update({k: conv(v) for k, v in (("fund_stop", args.stop), ("fund_target", args.target)) if v is not None})
+        if args.account is not None and "fund_stop" in res:
+            try:
+                res["size"] = sizing.shares(args.account, args.fund_price, res["fund_stop"],
+                                            args.pct or sizing.SHARE_RISK_PCT, max_cost=order_cap(args.account))
+            except ValueError as e:
+                sys.exit(f"refused: {e}")
+    out(res)
 
 
 def cmd_size(args) -> None:
@@ -264,7 +289,7 @@ def cmd_journal(args) -> None:
     except ValueError as e:
         sys.exit(f"refused: {e}")
     if args.action == "trade" and not args.type:
-        sys.exit("refused: a trade entry needs --type (shares, call, put or spread) for the track record")
+        sys.exit("refused: a trade entry needs --type (shares, lev-long, inverse, call, put or spread) for the track record")
     try:
         paths.ensure(LOG_DIR)
     except FileNotFoundError as e:
@@ -362,6 +387,7 @@ def main() -> None:
     pf.add_argument("--asset", choices=["option", "stock"], default="option")
     pf.add_argument("--expiration", help="option expiry YYYY-MM-DD")
     pf.add_argument("--leg", action="append", default=[], help="each option leg's live BID,ASK,OPEN_INTEREST")
+    pf.add_argument("--quote", help="a leveraged fund's live BID,ASK (shares of a fund in rhgex/leveraged.py)")
     pf.add_argument("--source", default="", help="the X post link behind the idea (saved in private/notes/posts/)")
     pf.add_argument("--earnings-play", action="store_true", help="the earnings report is the point of the trade")
     pf.add_argument("--new-setup", action="store_true", help="re-entry after a stop-out on a new post with new levels")
@@ -378,6 +404,15 @@ def main() -> None:
     sz.add_argument("--entry", type=float, help="shares: entry price")
     sz.add_argument("--stop", type=float, help="shares: stop price")
     sz.add_argument("--pct", type=float, help="override the risk %% (default 5)")
+
+    lv = sub.add_parser("lev", help="leveraged funds: a stock's funds, or a fund's stop/target and size")
+    lv.add_argument("symbol", help="a stock (lists its funds) or a fund")
+    lv.add_argument("--fund-price", type=float, help="the fund's live price")
+    lv.add_argument("--price", type=float, help="the stock's live price")
+    lv.add_argument("--stop", type=float, help="the plan's stop, on the stock")
+    lv.add_argument("--target", type=float, help="the plan's target, on the stock")
+    lv.add_argument("--account", type=float, help="account value: also size the fund order")
+    lv.add_argument("--pct", type=float, help="override the risk %% (default 5)")
 
     sub.add_parser("blocks")
 
@@ -428,7 +463,7 @@ def main() -> None:
     j.add_argument("--thesis", required=True)
     j.add_argument("--confidence", type=float, required=True, help="0-1")
     j.add_argument("--source", default="", help="e.g. the X post date/link the idea came from")
-    j.add_argument("--type", choices=["shares", "call", "put", "spread"],
+    j.add_argument("--type", choices=["shares", "lev-long", "inverse", "call", "put", "spread"],
                    help="trade (required): what was bought, for the track record's by-type split")
     j.add_argument("--pnl", type=float, help="exit: realized P/L in dollars (negative for a loss)")
     j.add_argument("--pnl-pct", type=float, help="exit: realized P/L as a % of the position's cost")
@@ -487,5 +522,5 @@ def main() -> None:
         p.error("wash add needs a symbol and --loss")
     {"research": cmd_research, "gex": cmd_gex, "check": cmd_check, "blocks": cmd_blocks,
      "fit": cmd_fit, "plan": cmd_plan, "exits": cmd_exits, "wash": cmd_wash, "watch": cmd_watch, "journal": cmd_journal,
-     "record": cmd_record, "calls": cmd_calls, "size": cmd_size,
+     "record": cmd_record, "calls": cmd_calls, "size": cmd_size, "lev": cmd_lev,
      "lock": cmd_lock, "peak": cmd_peak, "preflight": cmd_preflight, "init": cmd_init, "sync": cmd_sync}[args.cmd](args)
