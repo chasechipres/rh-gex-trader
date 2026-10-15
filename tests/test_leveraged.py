@@ -52,6 +52,8 @@ class FundPlans(unittest.TestCase):
                           earnings=lambda s: seen.append(s))
         self.assertEqual(rep[0]["price"], 211)
         self.assertEqual(rep[0]["price_source"], "passed")
+        # NVDA 211 vs the 212 stop: NVDL at 30 maps the stop to 30 x (1 + 2 x (212/211 - 1)) = 30.28
+        self.assertEqual(rep[0]["fund_stop"], 30.28)
         self.assertIn("STOP_HIT", rep[0]["signals"])
         self.assertEqual(seen, ["NVDA"])
 

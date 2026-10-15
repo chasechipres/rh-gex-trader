@@ -37,6 +37,22 @@ class Calls(unittest.TestCase):
         self.assertEqual(calls.score(c, [(D("2026-10-22"), 740, 700)], D("2026-10-22")), ("expired", "2026-10-21"))
         self.assertEqual(calls.score(c, [(D("2026-10-13"), 800, 700)], D("2026-10-14"))[0], "open")  # before post
 
+    def test_conditional_call_scores_after_its_trigger(self):
+        # "lose 723 and it's 716", invalid back above 727: nothing counts until a session trades below 723
+        c = self.add(symbol="NOK", level=723, target=716, invalid=727, trigger=("below", 723))
+        quiet = [(D("2026-10-14"), 726.9, 724), (D("2026-10-15"), 726.5, 723.5)]
+        self.assertEqual(calls.score(c, quiet, D("2026-10-15")), ("open", None))                 # 727 never counts
+        self.assertEqual(calls.score(c, quiet, D("2026-10-22")), ("not_triggered", "2026-10-21"))
+        broke = [(D("2026-10-14"), 726, 722.5), (D("2026-10-15"), 723, 715.8)]
+        self.assertEqual(calls.score(c, broke, D("2026-10-15")), ("hit", "2026-10-15"))
+        with self.assertRaises(ValueError):  # the trigger must sit between the invalidation and the target
+            self.add(symbol="AMD", target=716, invalid=727, trigger=("below", 730))
+
+    def test_not_triggered_is_left_out_of_the_rate(self):
+        s = calls.stats([{"setup": "breakout", "direction": "bullish", "result": r}
+                         for r in ("hit", "fail", "not_triggered", "not_triggered")])
+        self.assertEqual((s["breakout"]["hit_rate"], s["breakout"]["not_triggered"]), (0.5, 2))
+
     def test_post_time_scores_the_post_day_from_the_post_on(self):
         c = self.add(symbol="INTC", direction="bearish", setup="breakdown", level=110, target=105, invalid=111.5,
                      posted="2026-10-08 08:45", by="2026-10-16")
