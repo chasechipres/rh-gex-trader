@@ -2,6 +2,7 @@
 
   research  technicals + fundamentals (+ GEX profile with --gex) for one or more tickers
   gex       estimated gamma exposure profile: regime, zero-gamma flip, call/put walls
+  fit       option structures (calls/puts, debit verticals) that fit the risk budget and pass liquidity
   check     dry-run an order (JSON) through the exact PreToolUse hook
   blocks    show active wash-sale blocks, logged wash-sale windows and limits
   wash      log a loss exit and its 30-day wash-sale window (logging only), or list them
@@ -61,6 +62,13 @@ def cmd_gex(args) -> None:
     from . import gex
 
     out([gex.profile(s.upper().lstrip("$"), args.days) for s in args.symbols])
+
+
+def cmd_fit(args) -> None:
+    from . import fit
+
+    out(fit.scan(args.symbol.upper().lstrip("$"), args.direction, args.target, args.budget, args.min_dte,
+                 args.max_dte, args.top))
 
 
 def cmd_check(args) -> None:
@@ -282,6 +290,15 @@ def main() -> None:
     g.add_argument("symbols", nargs="+")
     g.add_argument("--days", type=int, default=45, help="max days to expiry to include")
 
+    ft = sub.add_parser("fit", help="liquid calls/puts and debit verticals that fit the risk budget")
+    ft.add_argument("symbol")
+    ft.add_argument("--direction", choices=["bullish", "bearish"], required=True)
+    ft.add_argument("--target", type=float, required=True, help="underlying target")
+    ft.add_argument("--budget", type=float, required=True, help="max loss per contract in dollars (`size` budget)")
+    ft.add_argument("--min-dte", type=int, default=14)
+    ft.add_argument("--max-dte", type=int, default=45)
+    ft.add_argument("--top", type=int, default=10)
+
     c = sub.add_parser("check")
     c.add_argument("tool", choices=sorted(["place_equity_order", "place_option_order"]))
     c.add_argument("order_json", help="the tool's arguments as JSON, exactly as you'd send them")
@@ -386,5 +403,5 @@ def main() -> None:
     if args.cmd == "wash" and args.action == "add" and (not args.symbol or args.loss is None):
         p.error("wash add needs a symbol and --loss")
     {"research": cmd_research, "gex": cmd_gex, "check": cmd_check, "blocks": cmd_blocks,
-     "plan": cmd_plan, "exits": cmd_exits, "wash": cmd_wash, "journal": cmd_journal, "record": cmd_record, "size": cmd_size,
+     "fit": cmd_fit, "plan": cmd_plan, "exits": cmd_exits, "wash": cmd_wash, "journal": cmd_journal, "record": cmd_record, "size": cmd_size,
      "lock": cmd_lock, "peak": cmd_peak, "preflight": cmd_preflight, "init": cmd_init, "sync": cmd_sync}[args.cmd](args)

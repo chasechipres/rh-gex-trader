@@ -191,6 +191,7 @@ uv run python -m rhgex gex SPX                   # regime, zero-gamma flip, call
 uv run python -m rhgex blocks                    # blocked symbols, limits, today's orders
 uv run python -m rhgex exits                     # open plans vs current prices
 uv run python -m rhgex size --account 1000 --option-cost 45   # contracts for 5% risk
+uv run python -m rhgex fit XYZ --direction bullish --target 110 --budget 50   # calls/verticals that fit
 uv run python -m rhgex preflight XYZ --direction bullish --price 100 --stop 95 --target 110 \
   --expiration 2026-11-20 --leg 4.00,4.20,2500 --source <post link>   # entry checklist
 ```
@@ -299,7 +300,7 @@ expiry, earnings, spreads).
 
 - **Sizing:** options first (it's a growth account), shares as the fallback. Every trade is sized so a full loss
   costs **5% of the account**.
-- **Entries:** liquid legs only (spread ≤ 10% of mid, open interest ≥ 500), reward:risk ≥ 1.5, posts from the last
+- **Entries:** liquid legs only (spread ≤ 10% of mid or $0.05, open interest ≥ 500; a spread's sold leg ≥ 100), reward:risk ≥ 1.5, posts from the last
   2 trading days, at most 2 positions per theme and 5 still at risk. `rhgex preflight` checks these.
 - **Winners run:** at 1R the stop moves to breakeven; at +100% or the target half is sold and the rest trails,
   giving back at most about a third of the gain. Spreads close at about 80% of max value.
@@ -335,7 +336,8 @@ rh-gex-trader/              shared (this repo)
 │   ├── washlog.py          wash-sale log (logging only)
 │   ├── market.py           technicals + fundamentals (Yahoo Finance)
 │   ├── indicators.py       EMA, RSI, ATR
-│   └── gex.py              gamma profile (Cboe delayed chains)
+│   ├── gex.py              gamma profile (Cboe delayed chains)
+│   └── fit.py              option structures that fit the risk budget
 ├── templates/private/      what `rhgex init` copies into private/
 ├── scripts/                owner tools
 ├── tests/                  unit tests, plus README facts vs the code

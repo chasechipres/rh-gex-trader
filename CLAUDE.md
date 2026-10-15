@@ -40,6 +40,7 @@ uv run python -m rhgex wash add TICKER --loss 12.34 [--asset option --contract "
 uv run python -m rhgex wash list [--all]               # loss exits and their 30-day wash-sale windows (logging only)
 uv run python -m rhgex check place_equity_order|place_option_order '<args JSON>'  # dry-run the exact hook
 uv run python -m rhgex preflight TICKER --direction D --price PX --stop PX --target PX [--asset stock] [--expiration YYYY-MM-DD --leg BID,ASK,OI ...] --source URL  # pre-trade checklist
+uv run python -m rhgex fit TICKER --direction D --target PX --budget DOLLARS [--min-dte 14 --max-dte 45]  # structures that fit
 uv run python -m rhgex size --account PX --option-cost DOLLARS_PER_CONTRACT      # options: 5% risk
 uv run python -m rhgex size --account PX --entry PX --stop PX                    # shares: 5% risk
 uv run python -m rhgex lock acquire|release|status                              # one machine at a time
@@ -212,11 +213,17 @@ orders and no open plans, say so in one line and stop (after steps 5 and 6, if t
      structure fits (verticals for expensive names or to cut cost). Use shares only when no option fits:
      an illiquid or wide chain, earnings inside the usable expiries, or a low-priced name whose chain is
      thin. Say why in the journal when you choose shares.
-   - **liquid means:** every leg has a bid/ask spread of at most 10% of its mid and open interest of at least
-     500. If a strike fails, try a nearby strike or expiry, then the share fallback, else `skip`.
+   - **find the structure with `fit`:** `fit TICKER --direction D --target PX --budget <5% of the account>`
+     lists the liquid calls/puts and debit verticals that cost no more than the budget and pay at the target,
+     best return first. On a small account most single legs on high-priced names won't fit; a narrow vertical
+     ($1-$5 wide) often does. Quotes are delayed, so re-quote the pick on Robinhood before `preflight`. If
+     `fit` finds nothing, try another expiry window, then the share fallback, else `skip`.
+   - **liquid means:** every leg has a bid/ask spread of at most 10% of its mid or $0.05, whichever is wider,
+     and the leg you buy has open interest of at least 500 (a spread's sold leg: 100). If a strike fails, try
+     a nearby strike or expiry, then the share fallback, else `skip`.
    - **strikes:** single calls/puts at or slightly in the money (delta ~0.45-0.60), so a move to the target
-     pays. Spreads buy near the money and sell the short leg at the plan's target or the call wall (put wall
-     for bearish), where dealers tend to pin price.
+     pays. Spreads buy near the money and sell the short leg at or before the plan's target or the call wall
+     (put wall for bearish), where dealers tend to pin price; narrow the width until the debit fits the budget.
    - **implied volatility:** compare the chain's IV with the stock's usual level (`research` reports `iv30`).
      High IV: use a spread, whose short leg offsets the cost. Normal or low IV: single legs are fine. Never buy
      single legs right before an event that will crush IV.
@@ -236,7 +243,7 @@ orders and no open plans, say so in one line and stop (after steps 5 and 6, if t
    yet; name the trigger). No paper trades.
 8. **Enter** (regular hours only, 9:35-15:50 ET; 9:35-12:50 ET on early-close days):
    0. **Preflight:** run `preflight TICKER --direction ... --price <live> --stop ... --target ...` (options:
-      `--expiration` and one `--leg BID,ASK,OI` per leg from live `get_option_quotes`; `--source` the post
+      `--expiration` and one `--leg BID,ASK,OI` per leg from live `get_option_quotes`, the bought leg first; `--source` the post
       link). Every FAIL is a `skip` unless it's a flag you can honestly pass (`--earnings-play`,
       `--new-setup`). It checks the mechanical rules only; the thesis, trend, GEX and fundamentals are still
       your call, and it doesn't know themes beyond the sector.
