@@ -14,8 +14,10 @@ from . import exits
 
 MAX_OPEN_AT_RISK = 5      # open positions whose stop is still below breakeven
 MAX_PER_SECTOR = 2        # open positions in one sector
-MAX_SPREAD_PCT = 10.0     # each leg's bid/ask spread, % of its mid
-MIN_OPEN_INTEREST = 500
+MAX_SPREAD_PCT = 10.0     # each leg's bid/ask spread, % of its mid ...
+MIN_SPREAD = 0.05         # ... or this many dollars, whichever is wider (a nickel is tight on a cheap leg)
+MIN_OPEN_INTEREST = 500   # the leg you buy (the first --leg)
+MIN_SHORT_OPEN_INTEREST = 100  # a spread's sold leg: further out of the money, so thinner
 DTE_RANGE = (14, 45)      # preferred days to expiry for options
 FRESH_POST_DAYS = 2       # trading days
 REVENGE_DAYS = 2          # trading days after a losing exit
@@ -53,6 +55,18 @@ class Context:
 
 def _days_ago(d: date, today: date) -> int:
     return exits.trading_days_until(today, d) if d <= today else 0
+
+
+def leg_liquidity(bid: float, ask: float, oi: int, short: bool = False) -> tuple[bool, str]:
+    """Whether one option leg is liquid enough to trade, and why. short: the sold leg of a spread."""
+    mid = (bid + ask) / 2
+    spread = ask - bid
+    max_spread = max(mid * MAX_SPREAD_PCT / 100, MIN_SPREAD)
+    min_oi = MIN_SHORT_OPEN_INTEREST if short else MIN_OPEN_INTEREST
+    ok = mid > 0 and spread <= max_spread + 1e-9 and oi >= min_oi
+    pct = spread / mid * 100 if mid > 0 else 100.0
+    return ok, (f"spread ${spread:.2f} = {pct:.1f}% of mid (max {MAX_SPREAD_PCT:g}% or ${MIN_SPREAD:.2f}), "
+                f"OI {oi} (min {min_oi})")
 
 
 def at_risk(plan: dict) -> bool:
@@ -94,10 +108,7 @@ def evaluate(c: Candidate, ctx: Context) -> list[dict]:
         if not c.legs:
             add("liquidity", False, "pass each leg's live quote as --leg BID,ASK,OI")
         for i, (bid, ask, oi) in enumerate(c.legs, 1):
-            mid = (bid + ask) / 2
-            spread = (ask - bid) / mid * 100 if mid > 0 else 100.0
-            add(f"liquidity_leg{i}", spread <= MAX_SPREAD_PCT and oi >= MIN_OPEN_INTEREST,
-                f"spread {spread:.1f}% of mid (max {MAX_SPREAD_PCT:g}%), OI {oi} (min {MIN_OPEN_INTEREST})")
+            add(f"liquidity_leg{i}", *leg_liquidity(bid, ask, oi, short=i > 1))
     else:
         soon = er is not None and ctx.today <= er and exits.trading_days_until(er, ctx.today) <= EARNINGS_SOON_DAYS
         add("earnings", not soon or c.earnings_play, f"next earnings {er}")
