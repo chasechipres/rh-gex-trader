@@ -16,6 +16,11 @@ class Sizing(unittest.TestCase):
         s = sizing.shares(1000, 50, 45)  # 5% = $50 budget, $5 per share
         self.assertEqual((s["shares"], s["risk"], s["cost"]), (10, 50.0, 500.0))
 
+    def test_shares_capped_by_max_order(self):
+        s = sizing.shares(1400, 422, 409, max_cost=1050)  # risk allows 5 ($2,110); the cap allows 2
+        self.assertEqual((s["shares"], s["cost"], s["capped_by"]), (2, 844.0, "max order $1050"))
+        self.assertNotIn("capped_by", sizing.shares(1000, 50, 45, max_cost=1050))  # $500 fits under the cap
+
     def test_bearish_stop_above_entry(self):
         self.assertEqual(sizing.shares(1000, 50, 52)["shares"], 25)
 

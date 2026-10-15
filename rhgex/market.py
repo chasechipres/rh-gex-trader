@@ -1,6 +1,7 @@
 """Price, technical and fundamental snapshot for a ticker (Yahoo Finance via yfinance)."""
 
 import logging
+from datetime import date
 
 import yfinance as yf
 
@@ -58,13 +59,28 @@ def technicals(symbol: str) -> dict:
     }
 
 
-def next_earnings(symbol: str):
-    """The next earnings date (a date), or None when Yahoo has none or the lookup fails."""
+def next_earnings(symbol: str, today: date | None = None):
+    """The next earnings date (a date), or None when Yahoo has none or the lookup fails. Yahoo's calendar keeps a
+    report's date through the day it comes out, so a date of today or earlier whose EPS is already reported (a
+    before-the-open report) counts as past."""
     try:
-        dates = (yf.Ticker(yahoo_symbol(symbol)).calendar or {}).get("Earnings Date") or []
-        return min(dates) if dates else None
+        t = yf.Ticker(yahoo_symbol(symbol))
+        dates = (t.calendar or {}).get("Earnings Date") or []
+        nxt = min(dates) if dates else None
+        if nxt is not None and nxt <= (today or date.today()) and nxt in reported_dates(t):
+            return None
+        return nxt
     except Exception:
         return None
+
+
+def reported_dates(ticker) -> set:
+    """Dates of reports whose EPS is already out (empty when the lookup fails, so the date is kept)."""
+    try:
+        df = ticker.get_earnings_dates(limit=4)
+        return {ts.date() for ts, eps in df["Reported EPS"].items() if eps == eps}  # NaN != NaN
+    except Exception:
+        return set()
 
 
 def fundamentals(symbol: str) -> dict:
