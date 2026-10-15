@@ -160,9 +160,9 @@ exception, step 1). If there are no positions, no open orders, no open plans and
    `CronList` then `CronDelete`), and make sure the next morning's cycle is scheduled (full-cycle step 10).
 6. **Pace the next check** (self-paced loop only, before 16:00 ET): call `ScheduleWakeup` with the prompt
    `run an exit check per CLAUDE.md`, and `delaySeconds` set by what's held now:
-   - **900 (15 min):** any spread, fractional-share position, position without a working resting stop, or
-     unfilled opening order. The exit check is their only stop.
-   - **1800 (30 min):** positions, all with resting stops, or open watches.
+   - **900 (15 min):** anything open: positions, orders, plans or watches. For spreads, fractional shares,
+     positions without a working resting stop and unfilled opening orders, the exit check is their only stop;
+     for watches, a shorter wait means a trigger is caught before most of the move is gone.
    - **3600 (60 min):** no positions, no open orders, no open plans, no open watches.
    Never let the wakeup land later than about 16:05 ET; shorten the delay so one check runs just after the
    close and ends the loop (step 5). Set `noop: true` when the check changed nothing.
