@@ -49,7 +49,7 @@ uv run python -m rhgex peak show                                                
 uv run python -m rhgex journal TICKER trade|skip|watch|exit --thesis "..." --confidence 0.7 --source "..."
 uv run python -m rhgex journal TICKER trade --type shares|lev-long|inverse|call|put|spread ...   # --type is required for trades
 uv run python -m rhgex journal TICKER exit --pnl -6.50 --pnl-pct -40 --thesis "..." --confidence 1
-uv run python -m rhgex calls add TICKER --direction D --setup uptrend-dip|downtrend-dip|breakdown|breakout|range|other --level PX --target PX --invalid PX --source URL --posted "YYYY-MM-DD HH:MM" [--by YYYY-MM-DD]
+uv run python -m rhgex calls add TICKER --direction D --setup uptrend-dip|downtrend-dip|breakdown|breakout|range|other --level PX --target PX --invalid PX --source URL --posted "YYYY-MM-DD HH:MM" [--by YYYY-MM-DD] [--above|--below PX]
 uv run python -m rhgex calls check|stats                         # score his open calls; hit rate by setup type
 uv run python -m rhgex record [--readme --account-value PX]   # live P/L; updates private/README.md
 uv run python -m rhgex sync [-m "msg"] [--pull]                  # commit private/, then pull + push it (if it has a remote)
@@ -195,7 +195,9 @@ exception, step 1). If there are no positions, no open orders, no open plans and
    out. Keep a running record of his calls versus what actually happened: log every directional call (a
    level, a target and a price that proves it wrong) with `calls add` (`--posted` is the post's time from its note name), and run `calls check` once per cycle.
    The setup is `downtrend-dip`/`uptrend-dip` for buying support against/with the trend, `breakdown`/
-   `breakout` for a lost or reclaimed level. `calls stats` is his hit rate by setup: weigh his posts with it.
+   `breakout` for a lost or reclaimed level. A conditional call ("lose 723 and it's 716") gets its trigger,
+   `--below 723` (or `--above`), so it's scored only once price gets there; log both sides of a two-sided pivot
+   as two calls. `calls stats` is his hit rate by setup: weigh his posts with it.
 4. **Check the account:** call `get_portfolio` for the agentic account (the hook records its value, and the
    percentage limits refuse every entry until it has today's), then buying power and today's P&L. If today's
    realized + unrealized loss is 20% or more of the account's value at the start of the day, place no new

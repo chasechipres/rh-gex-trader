@@ -313,7 +313,9 @@ def cmd_calls(args) -> None:
         try:
             check_source("trade", args.source)
             out(calls.add(args.symbol, args.direction, args.setup, args.level, args.target, args.invalid,
-                          args.source, args.by, args.posted, args.note))
+                          args.source, args.by, args.posted, args.note,
+                          trigger=("above", args.above) if args.above is not None
+                          else ("below", args.below) if args.below is not None else None))
         except ValueError as e:
             sys.exit(f"refused: {e}")
     elif args.action == "check":
@@ -481,6 +483,9 @@ def main() -> None:
                     "a date alone only for a post made before the open")
     cl.add_argument("--source", default="", help="the post link (saved in private/notes/posts/)")
     cl.add_argument("--note", default="")
+    trg = cl.add_mutually_exclusive_group()
+    trg.add_argument("--above", type=float, help="conditional call: scored only once price trades above this")
+    trg.add_argument("--below", type=float, help="conditional call: scored only once price trades below this")
 
     rec = sub.add_parser("record", help="track record: live realized P/L")
     rec.add_argument("--readme", action="store_true", help="rewrite the track-record block in private/README.md")
