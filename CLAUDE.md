@@ -85,7 +85,8 @@ exception, step 1). If there are no positions, no open orders, no open plans and
    entries, and tell the user to restart the session (`PushNotification` if they may be away). A running exit
    loop keeps going until they do.
    Then read positions and open orders with the Robinhood tools (`get_equity_positions`,
-   `get_option_positions` nonzero, `get_equity_orders` / `get_option_orders`), quotes for each holding, and
+   `get_option_positions` nonzero, `get_equity_orders` / `get_option_orders`), quotes for each holding (for a
+   leveraged fund, quote its stock too: the plan and `exits` use the stock's price), and
    `get_portfolio` (only when something is held) so the hook's daily-loss stop sees the current value.
    **Watches:** also quote every symbol in `watch list` and run `watch check --price SYM=PX ...`. A
    `TRIGGERED` watch is a candidate now: before 15:50 ET (and with the session lock), run full-cycle steps
@@ -238,7 +239,7 @@ exception, step 1). If there are no positions, no open orders, no open plans and
      - **Plan, preflight and the exit check stay on the stock's levels** (`plan add NVDL ... --price <NVDA>`,
        `exits --price NVDA=PX`); `lev FUND --fund-price PX --price PX --stop PX --target PX --account PX`
        gives the fund's stop and the size.
-     - **Rules:** at most 2x either way; at most 2 open at once; never hold one into the stock's earnings
+     - **Rules:** at most 2x either way; at most 2 open at once (preflight checks it); never hold one into the stock's earnings
        (EARNINGS_SOON exits it); its time stop is 5 trading days; a gap through the stop costs twice the
        stock's move, so skip names with an event that could gap them. Start the thesis with `[leveraged trial]`.
      - **Liquidity:** preflight checks it from the fund's live `--quote BID,ASK`: the spread must be at most 5%
@@ -248,10 +249,10 @@ exception, step 1). If there are no positions, no open orders, no open plans and
      lists the liquid calls/puts and debit verticals that cost no more than the budget and pay at the target,
      best return first. On a small account most single legs on high-priced names won't fit; a narrow vertical
      ($1-$5 wide) often does. Quotes are delayed, so re-quote the pick on Robinhood before `preflight`. If
-     `fit` finds nothing, try another expiry window, then the share fallback, else `skip`.
+     `fit` finds nothing, try another expiry window, then a leveraged fund or shares, else `skip`.
    - **liquid means:** every leg has a bid/ask spread of at most 10% of its mid or $0.05, whichever is wider,
      and the leg you buy has open interest of at least 500 (a spread's sold leg: 100). If a strike fails, try
-     a nearby strike or expiry, then the share fallback, else `skip`.
+     a nearby strike or expiry, then a leveraged fund or shares, else `skip`.
    - **strikes:** single calls/puts at or slightly in the money (delta ~0.45-0.60), so a move to the target
      pays. Spreads buy near the money and sell the short leg at or before the plan's target or the call wall
      (put wall for bearish), where dealers tend to pin price; narrow the width until the debit fits the budget.

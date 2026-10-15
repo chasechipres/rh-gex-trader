@@ -187,10 +187,12 @@ def check(prices: dict[str, float] | None = None, today: date | None = None, pat
     report = []
     for p in open_plans(load(path)):
         quoted = p.get("underlying") or p["symbol"]  # a leveraged fund's levels are on its stock
-        px = prices.get(quoted) or last_price(quoted)
+        passed = prices.get(quoted)
+        px = passed or last_price(quoted)
         er = earnings(quoted)
         report.append({"symbol": p["symbol"], "underlying": p.get("underlying"), "asset": p["asset"],
                        "direction": p["direction"], "price": px,
+                       "price_source": "passed" if passed else f"Yahoo (may lag; pass --price {quoted}=PX)",
                        "stop": p["stop"], "target": p["target"], "expiration": p["expiration"],
                        "earnings": er.isoformat() if er else None,
                        "signals": evaluate(p, px, today, er) or ["HOLD"]})
