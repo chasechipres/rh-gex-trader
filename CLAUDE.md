@@ -345,7 +345,8 @@ exception, step 1). If there are no positions, no open orders, no open plans and
 12. **Weekly review** (the last cycle of each trading week, or after every 10 closed trades, whichever comes
    first): write `private/notes/reviews/YYYY-MM-DD.md` from the journal and `record`: P/L by setup type and by entry
    confidence, which exit and entry rules fired and how those trades did, the source's calls versus outcomes (`calls stats`),
-   and any rule changes worth proposing. Propose changes to the user; don't change the rules on your own.
+   each trial from the track record's **Trials** table (a trial past its review date or trade count gets a keep, change
+   or drop proposal), and any rule changes worth proposing. Propose changes to the user; don't change the rules on your own.
 
 ## Running it
 
