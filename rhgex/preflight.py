@@ -116,6 +116,9 @@ def evaluate(c: Candidate, ctx: Context) -> list[dict]:
         needs = "bullish" if fund[1] > 0 else "bearish"  # a long fund needs the stock up, an inverse one down
         add("fund_direction", c.direction == needs, f"{sym} gains when {stock} is {needs}; the plan says {c.direction}")
         add(*fund_liquidity(c, ctx, fund[1]))
+        held = [p["symbol"] for p in ctx.plans if p.get("leverage")]
+        add("open_funds", len(held) < leveraged.MAX_OPEN,
+            f"{len(held)} leveraged/inverse funds open (max {leveraged.MAX_OPEN}): {', '.join(held) or 'none'}")
 
     try:
         rr = exits.reward_risk(c.direction, c.price, c.stop, c.target)

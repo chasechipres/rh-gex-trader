@@ -51,6 +51,7 @@ class FundPlans(unittest.TestCase):
         rep = exits.check({"NVDA": 211, "NVDL": 30}, today=date(2026, 10, 16), path=self.path,
                           earnings=lambda s: seen.append(s))
         self.assertEqual(rep[0]["price"], 211)
+        self.assertEqual(rep[0]["price_source"], "passed")
         self.assertIn("STOP_HIT", rep[0]["signals"])
         self.assertEqual(seen, ["NVDA"])
 
@@ -68,6 +69,13 @@ class FundPreflight(unittest.TestCase):
         self.assertIn("blocked", failed(checks))
         self.assertIn("leverage", {ch["check"] for ch in checks})
         self.assertEqual(seen, ["NVDA"])
+
+    def test_at_most_two_funds_open(self):
+        trade = dict(symbol="NVDL", direction="bullish", price=218, stop=212, target=230, asset="stock", legs=[])
+        funds = [{"symbol": s, "leverage": 2, "direction": "bullish", "stop": 1, "price": 2} for s in ("TSLL", "AMDL")]
+        ok = lambda plans: {x["check"]: x["ok"] for x in preflight.evaluate(good(**trade), ctx(plans=plans))}  # noqa: E731
+        self.assertTrue(ok(funds[:1])["open_funds"])
+        self.assertFalse(ok(funds)["open_funds"])
 
     def test_fund_liquidity(self):
         # NVDA 218, stop 212 (-2.75%): a 2x fund at 33 has its stop ~1.82 away, so the spread may be up to ~0.09
