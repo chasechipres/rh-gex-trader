@@ -166,7 +166,7 @@ def cmd_lev(args) -> None:
     sym = args.symbol.upper()
     fund = leveraged.underlying(sym)
     if not fund:
-        out({"stock": sym, "funds": leveraged.funds_for(sym)})
+        out({"stock": sym, "funds": {f: leveraged.FUNDS[f][1] for f in leveraged.funds_for(sym)}})  # fund -> leverage
         return
     stock, lev = fund
     res = {"fund": sym, "underlying": stock, "leverage": lev}
