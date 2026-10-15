@@ -160,9 +160,9 @@ exception, step 1). If there are no positions, no open orders, no open plans and
    `CronList` then `CronDelete`), and make sure the next morning's cycle is scheduled (full-cycle step 10).
 6. **Pace the next check** (self-paced loop only, before 16:00 ET): call `ScheduleWakeup` with the prompt
    `run an exit check per CLAUDE.md`, and `delaySeconds` set by what's held now:
-   - **900 (15 min):** any spread, fractional-share position, position without a working resting stop, or
-     unfilled opening order. The exit check is their only stop.
-   - **1800 (30 min):** positions, all with resting stops, or open watches.
+   - **900 (15 min):** anything open: positions, orders, plans or watches. For spreads, fractional shares,
+     positions without a working resting stop and unfilled opening orders, the exit check is their only stop;
+     for watches, a shorter wait means a trigger is caught before most of the move is gone.
    - **3600 (60 min):** no positions, no open orders, no open plans, no open watches.
    Never let the wakeup land later than about 16:05 ET; shorten the delay so one check runs just after the
    close and ends the loop (step 5). Set `noop: true` when the check changed nothing.
@@ -265,6 +265,9 @@ exception, step 1). If there are no positions, no open orders, no open plans and
    `trade` (with `--type shares|call|put|spread`, so the track record splits results by trade type), `skip`
    (fails a check, including a setup that clears everything but doesn't fit a limit) or `watch` (not triggered
    yet; name the trigger, and add it with `watch add` so every exit check tests it). No paper trades.
+   **Watch triggers** go just past the level he names (about half an ATR, or the next strike), with the stop
+   just past it the other way, not at the gamma flip or a far reclaim: a trigger far from his level fires after
+   most of the move. Check reward:risk from the trigger price.
 8. **Enter** (regular hours only, 9:35-15:50 ET; 9:35-12:50 ET on early-close days):
    0. **Preflight:** run `preflight TICKER --direction ... --price <live> --stop ... --target ...` (options:
       `--expiration` and one `--leg BID,ASK,OI` per leg from live `get_option_quotes`, the bought leg first; `--source` the post
