@@ -246,7 +246,8 @@ def cmd_watch(args) -> None:
     try:
         if args.action == "add":
             side, level = ("above", args.above) if args.above is not None else ("below", args.below)
-            out(watches.add(args.symbol, side, level, args.note, args.until, args.source))
+            out(watches.add(args.symbol, side, level, args.note, args.until, args.source,
+                            stop=args.stop, target=args.target))
         elif args.action == "close":
             out(watches.close(args.symbol, args.reason))
         elif args.action == "check":
@@ -444,6 +445,8 @@ def main() -> None:
     side.add_argument("--above", type=float, help="fires when the underlying is at or above this")
     side.add_argument("--below", type=float, help="fires when the underlying is at or below this")
     wt.add_argument("--until", help="last live day YYYY-MM-DD (default: 2 trading days)")
+    wt.add_argument("--stop", type=float, help="add: the trade's stop on the underlying")
+    wt.add_argument("--target", type=float, help="add: the trade's target; reward:risk from the trigger must be >= 1.5")
     wt.add_argument("--note", default="", help="what to do when it fires")
     wt.add_argument("--source", default="", help="the post behind the watch")
     wt.add_argument("--price", action="append", default=[], help="check: SYMBOL=PX from Robinhood quotes")
@@ -520,6 +523,8 @@ def main() -> None:
         p.error("watch add/close needs a symbol")
     if args.cmd == "watch" and args.action == "add" and args.above is None and args.below is None:
         p.error("watch add needs --above or --below")
+    if args.cmd == "watch" and args.action == "add" and (args.stop is None or args.target is None):
+        p.error("watch add needs --stop and --target, so reward:risk is checked from the trigger")
     if args.cmd == "calls" and args.action == "add" and (
             not args.symbol or None in (args.direction, args.setup, args.level, args.target, args.invalid)):
         p.error("calls add needs a symbol, --direction, --setup, --level, --target and --invalid")

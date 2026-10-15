@@ -58,7 +58,7 @@ uv run python -m rhgex plan add TICKER --asset stock|option --direction bullish|
 uv run python -m rhgex plan raise-stop TICKER --stop PX          # tighten the underlying stop (never loosens)
 uv run python -m rhgex plan close TICKER --reason "..."          # after the position is fully closed
 uv run python -m rhgex plan list
-uv run python -m rhgex watch add TICKER --above|--below PX --note "..." --source URL [--until YYYY-MM-DD]  # a watch's trigger
+uv run python -m rhgex watch add TICKER --above|--below PX --stop PX --target PX --note "..." --source URL [--until YYYY-MM-DD]  # refuses R:R < 1.5 from the trigger
 uv run python -m rhgex watch check --price TICKER=PX ...         # open triggers vs price: TRIGGERED/WAITING/EXPIRED
 uv run python -m rhgex watch close TICKER --reason "..."         # entered, skipped or the setup died
 uv run python -m rhgex exits [--price TICKER=PX ...]             # open plans vs price: STOP_HIT/TARGET_HIT/AT_1R/EXPIRING/EARNINGS_SOON/TIME_STOP
@@ -286,7 +286,8 @@ one line and stop (after steps 5 and 6, if they apply).
    yet; name the trigger, and add it with `watch add` so every exit check tests it). No paper trades.
    **Watch triggers** go just past the level he names (about half an ATR, or the next strike), with the stop
    just past it the other way, not at the gamma flip or a far reclaim: a trigger far from his level fires after
-   most of the move. Check reward:risk from the trigger price.
+   most of the move. `watch add` needs the stop and target and refuses a watch under 1.5 reward:risk from the
+   trigger price: move the trigger closer to his level, or skip the idea.
 8. **Enter** (regular hours only, 9:35-15:50 ET; 9:35-12:50 ET on early-close days):
    0. **Preflight:** run `preflight TICKER --direction ... --price <live> --stop ... --target ...` (options:
       `--expiration` and one `--leg BID,ASK,OI` per leg from live `get_option_quotes`, the bought leg first; `--source` the post
