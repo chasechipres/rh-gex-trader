@@ -10,7 +10,7 @@ import json
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
-from . import paths
+from . import leveraged, paths
 
 PLANS = paths.STATE / "plans.json"
 EXPIRY_EXIT_DAYS = 2  # close options this many days or fewer before expiry unless the thesis is playing out
@@ -78,6 +78,9 @@ def add(symbol: str, asset: str, direction: str, stop: float, target: float, the
             "expiration": expiration, "premium_stop": premium_stop, "price": price, "reward_risk": rr,
             "existing": existing, "thesis": thesis, "status": "open",
             "opened": datetime.now().isoformat(timespec="seconds")}
+    fund = leveraged.underlying(symbol) if asset == "stock" else None
+    if fund:  # levels and price are the underlying's; the exit check quotes it
+        plan.update(underlying=fund[0], leverage=fund[1])
     plans.append(plan)
     save(plans, path)
     return plan
@@ -156,7 +159,8 @@ def time_stop(plan: dict, today: date) -> bool:
     entry, bull = plan["price"], plan["direction"] == "bullish"
     at_breakeven = plan["stop"] >= entry if bull else plan["stop"] <= entry
     opened = date.fromisoformat(plan["opened"][:10])
-    return not at_breakeven and trading_days_until(today, opened) >= SHARE_TIME_STOP_DAYS
+    days = leveraged.TIME_STOP_DAYS if plan.get("leverage") else SHARE_TIME_STOP_DAYS
+    return not at_breakeven and trading_days_until(today, opened) >= days
 
 
 def last_price(symbol: str) -> float | None:
@@ -182,9 +186,11 @@ def check(prices: dict[str, float] | None = None, today: date | None = None, pat
     prices = {k.upper(): v for k, v in (prices or {}).items()}
     report = []
     for p in open_plans(load(path)):
-        px = prices.get(p["symbol"]) or last_price(p["symbol"])
-        er = earnings(p["symbol"])
-        report.append({"symbol": p["symbol"], "asset": p["asset"], "direction": p["direction"], "price": px,
+        quoted = p.get("underlying") or p["symbol"]  # a leveraged fund's levels are on its stock
+        px = prices.get(quoted) or last_price(quoted)
+        er = earnings(quoted)
+        report.append({"symbol": p["symbol"], "underlying": p.get("underlying"), "asset": p["asset"],
+                       "direction": p["direction"], "price": px,
                        "stop": p["stop"], "target": p["target"], "expiration": p["expiration"],
                        "earnings": er.isoformat() if er else None,
                        "signals": evaluate(p, px, today, er) or ["HOLD"]})

@@ -12,6 +12,7 @@
   record    track record: live realized P/L and win rate by confidence (--readme updates private/README.md)
   preflight pre-trade checklist: every mechanical entry rule, before plan add
   size      contracts or shares for a fixed % risk of the account
+  lev       leveraged funds: a stock's funds, or a fund's stop/target and size
   lock      one machine at a time: acquire|release|status the session lock
   peak      drawdown baseline: show, or reset (owner only)
   init      set up private/ (your limits, notes, journal, plans); --github, --clone, --migrate, --check
@@ -157,6 +158,28 @@ def order_cap(account: float) -> float | None:
         return guardrails.limit(guardrails.load()["limits"], "order", account)
     except ValueError:
         return None
+
+
+def cmd_lev(args) -> None:
+    from . import leveraged, sizing
+
+    sym = args.symbol.upper()
+    fund = leveraged.underlying(sym)
+    if not fund:
+        out({"stock": sym, "funds": leveraged.funds_for(sym)})
+        return
+    stock, lev = fund
+    res = {"fund": sym, "underlying": stock, "leverage": lev}
+    if args.fund_price is not None and args.price is not None:
+        conv = lambda lvl: leveraged.fund_level(args.fund_price, args.price, lvl, lev)  # noqa: E731
+        res.update({k: conv(v) for k, v in (("fund_stop", args.stop), ("fund_target", args.target)) if v is not None})
+        if args.account is not None and "fund_stop" in res:
+            try:
+                res["size"] = sizing.shares(args.account, args.fund_price, res["fund_stop"],
+                                            args.pct or sizing.SHARE_RISK_PCT, max_cost=order_cap(args.account))
+            except ValueError as e:
+                sys.exit(f"refused: {e}")
+    out(res)
 
 
 def cmd_size(args) -> None:
@@ -379,6 +402,15 @@ def main() -> None:
     sz.add_argument("--stop", type=float, help="shares: stop price")
     sz.add_argument("--pct", type=float, help="override the risk %% (default 5)")
 
+    lv = sub.add_parser("lev", help="leveraged funds: a stock's funds, or a fund's stop/target and size")
+    lv.add_argument("symbol", help="a stock (lists its funds) or a fund")
+    lv.add_argument("--fund-price", type=float, help="the fund's live price")
+    lv.add_argument("--price", type=float, help="the stock's live price")
+    lv.add_argument("--stop", type=float, help="the plan's stop, on the stock")
+    lv.add_argument("--target", type=float, help="the plan's target, on the stock")
+    lv.add_argument("--account", type=float, help="account value: also size the fund order")
+    lv.add_argument("--pct", type=float, help="override the risk %% (default 5)")
+
     sub.add_parser("blocks")
 
     pl = sub.add_parser("plan", help="exit plans: add before entry, raise-stop as it works, close after exit, list")
@@ -487,5 +519,5 @@ def main() -> None:
         p.error("wash add needs a symbol and --loss")
     {"research": cmd_research, "gex": cmd_gex, "check": cmd_check, "blocks": cmd_blocks,
      "fit": cmd_fit, "plan": cmd_plan, "exits": cmd_exits, "wash": cmd_wash, "watch": cmd_watch, "journal": cmd_journal,
-     "record": cmd_record, "calls": cmd_calls, "size": cmd_size,
+     "record": cmd_record, "calls": cmd_calls, "size": cmd_size, "lev": cmd_lev,
      "lock": cmd_lock, "peak": cmd_peak, "preflight": cmd_preflight, "init": cmd_init, "sync": cmd_sync}[args.cmd](args)

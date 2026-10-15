@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
 
-from . import exits
+from . import exits, leveraged
 
 MAX_OPEN_AT_RISK = 5      # open positions whose stop is still below breakeven
 MAX_PER_SECTOR = 2        # open positions in one sector
@@ -85,7 +85,14 @@ def evaluate(c: Candidate, ctx: Context) -> list[dict]:
         checks.append({"check": name, "ok": ok, "detail": detail})
 
     sym = c.symbol.upper()
-    add("blocked", sym not in ctx.blocks, ctx.blocks.get(sym, "not blocked"))
+    fund = leveraged.underlying(sym) if c.asset == "stock" else None
+    stock = fund[0] if fund else sym  # a leveraged fund is checked on its stock: earnings, sector, blocks
+    blocked = sym if sym in ctx.blocks else stock if stock in ctx.blocks else None
+    add("blocked", blocked is None, f"{blocked}: {ctx.blocks[blocked]}" if blocked else "not blocked")
+    if fund:
+        add("leverage", fund[1] <= leveraged.MAX_LEVERAGE,
+            f"{fund[1]}x fund on {stock} (max {leveraged.MAX_LEVERAGE}x; time stop {leveraged.TIME_STOP_DAYS} "
+            "trading days); --price/--stop/--target are the stock's")
 
     try:
         rr = exits.reward_risk(c.direction, c.price, c.stop, c.target)
@@ -93,7 +100,7 @@ def evaluate(c: Candidate, ctx: Context) -> list[dict]:
     except ValueError as e:
         add("reward_risk", False, str(e))
 
-    er = ctx.earnings(sym) if ctx.earnings else None
+    er = ctx.earnings(stock) if ctx.earnings else None
     if c.asset == "option":
         if not c.expiration:
             add("expiration", False, "options need --expiration")
@@ -124,8 +131,8 @@ def evaluate(c: Candidate, ctx: Context) -> list[dict]:
         f"{len(risky)} open positions still at risk (max {MAX_OPEN_AT_RISK}): {', '.join(risky) or 'none'}")
 
     if ctx.sector:
-        mine = ctx.sector(sym)
-        same = [p["symbol"] for p in ctx.plans if mine and ctx.sector(p["symbol"]) == mine]
+        mine = ctx.sector(stock)
+        same = [p["symbol"] for p in ctx.plans if mine and ctx.sector(p.get("underlying") or p["symbol"]) == mine]
         add("sector", len(same) < MAX_PER_SECTOR,
             f"{mine or 'unknown sector'}: {len(same)} open ({', '.join(same) or 'none'}), max {MAX_PER_SECTOR}; "
             "themes (AI, crypto miners) are your call")

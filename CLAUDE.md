@@ -43,6 +43,7 @@ uv run python -m rhgex preflight TICKER --direction D --price PX --stop PX --tar
 uv run python -m rhgex fit TICKER --direction D --target PX --budget DOLLARS [--min-dte 14 --max-dte 45]  # structures that fit
 uv run python -m rhgex size --account PX --option-cost DOLLARS_PER_CONTRACT      # options: 5% risk
 uv run python -m rhgex size --account PX --entry PX --stop PX                    # shares: 5% risk
+uv run python -m rhgex lev TICKER [--fund-price PX --price PX --stop PX --target PX --account PX]  # 2x funds: list, or fund stop/target + size
 uv run python -m rhgex lock acquire|release|status                              # one machine at a time
 uv run python -m rhgex peak show                                                 # drawdown baseline (peak reset: user only)
 uv run python -m rhgex journal TICKER trade|skip|watch|exit --thesis "..." --confidence 0.7 --source "..."
@@ -226,6 +227,16 @@ exception, step 1). If there are no positions, no open orders, no open plans and
      structure fits (verticals for expensive names or to cut cost). Use shares only when no option fits:
      an illiquid or wide chain, earnings inside the usable expiries, or a low-priced name whose chain is
      thin. Say why in the journal when you choose shares.
+   - **leveraged funds before plain shares (trial from 2026-10-16, reviewed after 10 trades):** when no option
+     fits and the stock has a 2x fund in `rhgex/leveraged.py` (`lev TICKER` lists them), buy the fund instead
+     of the stock: the same 5% risk fits in half the cash, which matters when the order cap limits plain
+     shares. Plan, preflight and the exit check stay on the stock's levels (`plan add NVDL ... --price <NVDA>`,
+     `exits --price NVDA=PX`); `lev FUND --fund-price PX --price PX --stop PX --target PX --account PX`
+     gives the fund's stop and the size. Rules: 2x only; at most 2 open at once; never hold one into the
+     stock's earnings (EARNINGS_SOON exits it); its time stop is 5 trading days; a gap through the stop costs
+     twice the stock's move, so skip names with an event that could gap them. Start the thesis with
+     `[leveraged trial]`. Use plain shares when the stock has no listed fund or the fund's spread is wider than
+     0.2% of its price.
    - **find the structure with `fit`:** `fit TICKER --direction D --target PX --budget <5% of the account>`
      lists the liquid calls/puts and debit verticals that cost no more than the budget and pay at the target,
      best return first. On a small account most single legs on high-priced names won't fit; a narrow vertical
@@ -289,7 +300,9 @@ exception, step 1). If there are no positions, no open orders, no open plans and
       unfilled entry order open into the next cycle.
    4. **As soon as it fills, place the protective order (GTC):**
       - shares: `stop_market` sell at the plan's stop (whole shares; Robinhood only allows market orders
-        for fractional shares, so fractional positions rely on the exit check instead)
+        for fractional shares, so fractional positions rely on the exit check instead). A leveraged fund's
+        stop goes at `lev`'s `fund_stop`; re-translate it with `lev` whenever the plan's stop moves (raise-stop,
+        breakeven at 1R), since the fund drifts from 2x over several days
       - single-leg options: `stop_limit` sell-to-close, stop at `--premium-stop` (default: ~40% below the
         entry premium) and the limit about 10-15% below the stop, so a thin bid can't fill it at a fraction
         of its value. The underlying stop in the plan is still enforced by the exit check
@@ -347,7 +360,7 @@ MCP currently refuses agent multi-leg orders ("a multi-leg strategy cannot be se
 approvals off. When a vertical is the chosen structure, still place it: that attempt is the check for a fix. If
 it's refused with that error, it's not a Robinhood failure for the 2-failure rule above; don't retry it, and
 never leg into it (a lone long leg breaks the premium cap, a lone short leg looks naked). Use a single leg that
-fits, else shares, else `skip`, and journal why. The first time a spread is accepted, comment on the issue and
+fits, else a leveraged fund or shares, else `skip`, and journal why. The first time a spread is accepted, comment on the issue and
 tell the user, so this note can be removed.
 
 ## Hard rules

@@ -41,6 +41,7 @@ rh-gex-trader/              shared (this repo)
 │   ├── watches.py          watch triggers, checked every exit check
 │   ├── dailyloss.py        daily loss stop and drawdown pause
 │   ├── sizing.py           position size for a fixed % risk
+│   ├── leveraged.py        single-stock leveraged funds and their stocks
 │   ├── preflight.py        pre-trade checklist
 │   ├── lock.py             one machine at a time
 │   ├── record.py           track record

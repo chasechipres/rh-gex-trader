@@ -55,8 +55,10 @@ flowchart LR
 protects it even when no session is running; the exit check catches what a resting order can't (targets,
 expiry, earnings, spreads).
 
-- **Sizing:** options first (it's a growth account), shares as the fallback. Every trade is sized so a full loss
-  costs **5% of the account**.
+- **Sizing:** options first (it's a growth account), then a 2x single-stock fund on the stock (a trial; see
+  `rhgex lev`), then plain shares. Every trade is sized so a full loss costs **5% of the account**. A fund lets
+  that risk fit in half the cash, but a gap through its stop costs twice the stock's move, and the hook refuses
+  a fund whose stock is blocked.
 - **Entries:** liquid legs only (spread ≤ 10% of mid or $0.05, open interest ≥ 500; a spread's sold leg ≥ 100), reward:risk ≥ 1.5, posts from the last
   2 trading days, at most 2 positions per theme and 5 still at risk. `rhgex preflight` checks these.
 - **Winners run:** at 1R the stop moves to breakeven; at +100% or the target half is sold and the rest trails,

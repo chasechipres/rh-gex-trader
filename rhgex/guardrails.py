@@ -12,7 +12,7 @@ import tomllib
 from datetime import date
 from pathlib import Path
 
-from . import paths
+from . import leveraged, paths
 
 CONFIG = paths.GUARDRAILS
 CONTRACT = 100
@@ -97,6 +97,9 @@ def check(cfg: dict, order: dict, ledger_today: list[dict], today: date | None =
     blocks = active_blocks(cfg, today)
     if symbol in blocks:
         return False, f"{symbol} is blocked ({blocks[symbol]})"
+    fund = leveraged.underlying(symbol)
+    if fund and fund[0] in blocks:  # a leveraged fund on a blocked stock is the same exposure
+        return False, f"{symbol} is a {fund[1]}x fund on {fund[0]}, which is blocked ({blocks[fund[0]]})"
 
     if not is_opening(order):
         # Robinhood cash/agentic accounts can't short stock, so a stock sell is an exit.
