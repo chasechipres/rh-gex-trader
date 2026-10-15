@@ -19,6 +19,7 @@
       "Bash(uv run python -m rhgex exits*)",
       "Bash(uv run python -m rhgex plan*)",
       "Bash(uv run python -m rhgex record*)",
+      "Bash(uv run python -m rhgex calls*)",
       "Bash(uv run python -m rhgex wash*)",
       "Bash(uv run python -m rhgex watch*)",
       "Bash(uv run python -m rhgex sync*)",
