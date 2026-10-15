@@ -23,12 +23,14 @@ require_limit_orders = true      # opening orders must carry a limit price (stoc
 
 # EDIT: uncomment if you buy S&P 500 funds anywhere else (a 401k, an IRA, automatic investing).
 # A loss here within 30 days of a buy there can be a wash sale. Trade SPX or XSP options instead.
+# The list includes the leveraged and inverse S&P 500 funds: the hook matches exact symbols only.
 # [[blocked]]
 # name = "S&P 500: bought in another account"
-# symbols = ["SPY", "VOO", "IVV", "SPLG", "SPYM"]
+# symbols = ["SPY", "VOO", "IVV", "SPLG", "SPYM", "SSO", "UPRO", "SPXL", "SH", "SDS", "SPXU", "SPXS"]
 # until = ""
 
-# EDIT: stocks you hold in another account and don't want touched here. Uncomment and list yours.
+# EDIT: stocks you hold in another account and don't want touched here. Uncomment and list yours, with their
+# single-stock leveraged and inverse ETFs (search "2x <ticker> ETF"): the hook matches exact symbols only.
 # [[blocked]]
 # name = "held in another account"
 # symbols = ["ABC", "XYZ"]
