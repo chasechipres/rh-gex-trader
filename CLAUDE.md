@@ -39,7 +39,7 @@ uv run python -m rhgex blocks                          # active wash-sale blocks
 uv run python -m rhgex wash add TICKER --loss 12.34 [--asset option --contract "XYZ 2026-11-20 100P"] [--date YYYY-MM-DD]
 uv run python -m rhgex wash list [--all]               # loss exits and their 30-day wash-sale windows (logging only)
 uv run python -m rhgex check place_equity_order|place_option_order '<args JSON>'  # dry-run the exact hook
-uv run python -m rhgex preflight TICKER --direction D --price PX --stop PX --target PX [--asset stock] [--expiration YYYY-MM-DD --leg BID,ASK,OI ...] --source URL  # pre-trade checklist
+uv run python -m rhgex preflight TICKER --direction D --price PX --stop PX --target PX [--asset stock [--quote BID,ASK]] [--expiration YYYY-MM-DD --leg BID,ASK,OI ...] --source URL  # pre-trade checklist
 uv run python -m rhgex fit TICKER --direction D --target PX --budget DOLLARS [--min-dte 14 --max-dte 45]  # structures that fit
 uv run python -m rhgex size --account PX --option-cost DOLLARS_PER_CONTRACT      # options: 5% risk
 uv run python -m rhgex size --account PX --entry PX --stop PX                    # shares: 5% risk
@@ -237,8 +237,9 @@ exception, step 1). If there are no positions, no open orders, no open plans and
      gives the fund's stop and the size. Rules: at most 2x either way (prefer 2x for bullish, either for bearish); at most 2 open at once; never hold one into the
      stock's earnings (EARNINGS_SOON exits it); its time stop is 5 trading days; a gap through the stop costs
      twice the stock's move, so skip names with an event that could gap them. Start the thesis with
-     `[leveraged trial]`. Use plain shares when the stock has no listed fund or the fund's spread is wider than
-     0.2% of its price.
+     `[leveraged trial]`. Preflight checks the fund's liquidity (`--quote BID,ASK` from a live Robinhood quote): its spread must be
+     at most 5% of the distance to the fund's stop, and it must trade at least $5M a day. If it fails, or the
+     stock has no listed fund, use plain shares (or skip).
    - **find the structure with `fit`:** `fit TICKER --direction D --target PX --budget <5% of the account>`
      lists the liquid calls/puts and debit verticals that cost no more than the budget and pay at the target,
      best return first. On a small account most single legs on high-priced names won't fit; a narrow vertical

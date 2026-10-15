@@ -52,6 +52,8 @@ FUNDS = {  # fund -> (underlying, daily leverage)
     "MUD": ("MU", -1),     # Direxion Daily MU Bear 1X
 }
 MAX_LEVERAGE = 2           # funds above this (either way) are refused by preflight
+MAX_SPREAD_OF_RISK = 0.05  # a fund's bid/ask spread, as a share of the distance from entry to its stop
+MIN_DOLLAR_VOLUME = 5_000_000  # average daily dollar volume, so a stop-out doesn't move the price
 TIME_STOP_DAYS = 5         # trading days a leveraged fund may sit without reaching 1R (daily reset decays it)
 
 

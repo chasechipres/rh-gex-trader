@@ -69,6 +69,16 @@ class FundPreflight(unittest.TestCase):
         self.assertIn("leverage", {ch["check"] for ch in checks})
         self.assertEqual(seen, ["NVDA"])
 
+    def test_fund_liquidity(self):
+        # NVDA 218, stop 212 (-2.75%): a 2x fund at 33 has its stop ~1.82 away, so the spread may be up to ~0.09
+        trade = dict(symbol="NVDL", direction="bullish", price=218, stop=212, target=230, asset="stock", legs=[])
+        busy = ctx(dollar_volume=lambda s: 80e6)
+        check = lambda c, q: {x["check"]: x["ok"] for x in preflight.evaluate(good(quote=q, **trade), c)}  # noqa: E731
+        self.assertTrue(check(busy, (32.99, 33.01))["fund_liquidity"])
+        self.assertFalse(check(busy, (32.80, 33.20))["fund_liquidity"])              # spread 22% of the risk
+        self.assertFalse(check(ctx(dollar_volume=lambda s: 1e6), (32.99, 33.01))["fund_liquidity"])  # thin
+        self.assertFalse(check(busy, None)["fund_liquidity"])                       # no live quote
+
     def test_fund_direction_must_match(self):
         bull = dict(direction="bullish", price=218, stop=212, target=230, asset="stock", legs=[])
         bear = dict(direction="bearish", price=218, stop=224, target=206, asset="stock", legs=[])

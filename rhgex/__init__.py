@@ -107,14 +107,16 @@ def cmd_preflight(args) -> None:
         bid, ask, oi = leg.split(",")
         legs.append((float(bid), float(ask), int(oi)))
     c = preflight.Candidate(args.symbol, args.direction, args.price, args.stop, args.target, args.asset,
-                            args.expiration, legs, args.source, args.earnings_play, args.new_setup)
+                            args.expiration, legs, args.source, args.earnings_play, args.new_setup,
+                            tuple(float(x) for x in args.quote.split(",")) if args.quote else None)
     ctx = preflight.Context(
         today=date.today(), blocks=guardrails.active_blocks(cfg, date.today()),
         plans=exits.open_plans(exits.load()), journal=record.load(), posts=preflight.saved_posts(POSTS_DIR),
         opened_today=sum(1 for r in hook.ledger_today() if r.get("opening")),
         max_new_per_day=cfg["limits"].get("max_new_positions_per_day", 3),
         earnings=lru_cache(None)(market.next_earnings),
-        sector=lru_cache(None)(lambda s: market.fundamentals(s).get("sector")))
+        sector=lru_cache(None)(lambda s: market.fundamentals(s).get("sector")),
+        dollar_volume=market.dollar_volume)
     checks = preflight.evaluate(c, ctx)
     for ch in checks:
         print(f"{'PASS' if ch['ok'] else 'FAIL'}  {ch['check']:<16} {ch['detail']}")
@@ -385,6 +387,7 @@ def main() -> None:
     pf.add_argument("--asset", choices=["option", "stock"], default="option")
     pf.add_argument("--expiration", help="option expiry YYYY-MM-DD")
     pf.add_argument("--leg", action="append", default=[], help="each option leg's live BID,ASK,OPEN_INTEREST")
+    pf.add_argument("--quote", help="a leveraged fund's live BID,ASK (shares of a fund in rhgex/leveraged.py)")
     pf.add_argument("--source", default="", help="the X post link behind the idea (saved in private/notes/posts/)")
     pf.add_argument("--earnings-play", action="store_true", help="the earnings report is the point of the trade")
     pf.add_argument("--new-setup", action="store_true", help="re-entry after a stop-out on a new post with new levels")
