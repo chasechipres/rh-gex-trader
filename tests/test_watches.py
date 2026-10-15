@@ -38,6 +38,19 @@ class Watches(unittest.TestCase):
         with self.assertRaises(ValueError):
             watches.close("NVDA", "again", path=self.path)
 
+    def test_reward_risk_from_the_trigger(self):
+        # today's ASTS: trigger 42.2, stop 39.5, his $45 target is 2.8 away vs 2.7 at risk: refused
+        with self.assertRaises(ValueError):
+            watches.add("ASTS", "above", 42.2, "", today=TODAY, path=self.path, stop=39.5, target=45)
+        # a trigger just past his $40 level clears it: 5.0 to the target vs 1.5 at risk
+        w = watches.add("ASTS", "above", 40.0, "", today=TODAY, path=self.path, stop=38.5, target=45)
+        self.assertEqual((w["stop"], w["target"], w["reward_risk"]), (38.5, 45, 3.33))
+        # bearish: a trigger below the level, stop above it, target lower
+        w = watches.add("SPX", "below", 7695, "", today=TODAY, path=self.path, stop=7712, target=7640)
+        self.assertEqual(w["reward_risk"], 3.24)
+        with self.assertRaises(ValueError):  # both or neither
+            watches.add("NVDA", "above", 222, "", today=TODAY, path=self.path, stop=218)
+
     def test_validation(self):
         with self.assertRaises(ValueError):
             watches.add("X", "near", 1, "", today=TODAY, path=self.path)

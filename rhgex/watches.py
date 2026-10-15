@@ -3,13 +3,15 @@
 A cycle that journals a `watch` also adds its trigger here; every exit check prices the open watches and
 reports the ones that fired, so a trigger between the three daily cycles isn't missed. A trigger is a level
 on the underlying (`above` or `below`) and lapses after `until` (default: 2 trading days, the fresh-post window).
+With a stop and a target, a watch is refused unless the trade clears the minimum reward:risk from the trigger
+price, so a trigger that fires is already worth researching.
 """
 
 import json
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
-from . import paths
+from . import exits, paths
 
 WATCHES = paths.STATE / "watches.json"
 DEFAULT_DAYS = 2  # trading days a trigger stays live, like the fresh-post rule
@@ -36,10 +38,21 @@ def add_trading_days(day: date, n: int) -> date:
 
 
 def add(symbol: str, side: str, level: float, note: str, until: str | None = None, source: str = "",
-        today: date | None = None, path: Path = WATCHES) -> dict:
-    """side: 'above' fires when price >= level, 'below' when price <= level. One open watch per symbol."""
+        today: date | None = None, path: Path = WATCHES, stop: float | None = None,
+        target: float | None = None) -> dict:
+    """side: 'above' fires when price >= level, 'below' when price <= level. One open watch per symbol.
+    stop/target (on the underlying, both or neither): the trade must clear exits.MIN_REWARD_RISK from the trigger."""
     if side not in ("above", "below"):
         raise ValueError("side must be above or below")
+    rr = None
+    if (stop is None) != (target is None):
+        raise ValueError("pass both --stop and --target, or neither")
+    if stop is not None:
+        direction = "bullish" if target > level else "bearish"
+        rr = exits.reward_risk(direction, level, stop, target)  # raises if the trigger isn't between them
+        if rr < exits.MIN_REWARD_RISK:
+            raise ValueError(f"reward:risk {rr} from the trigger {level} is below {exits.MIN_REWARD_RISK}; "
+                             "move the trigger closer to his level or skip it")
     today = today or date.today()
     end = date.fromisoformat(until) if until else add_trading_days(today, DEFAULT_DAYS)
     if end < today:
@@ -51,6 +64,8 @@ def add(symbol: str, side: str, level: float, note: str, until: str | None = Non
             w.update(status="replaced", closed=datetime.now().isoformat(timespec="seconds"))
     w = {"symbol": symbol, "side": side, "level": level, "until": end.isoformat(), "note": note, "source": source,
          "status": "open", "opened": datetime.now().isoformat(timespec="seconds")}
+    if rr is not None:
+        w.update(stop=stop, target=target, reward_risk=rr)
     watches.append(w)
     save(watches, path)
     return w
