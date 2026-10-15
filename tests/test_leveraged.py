@@ -13,12 +13,17 @@ class FundMath(unittest.TestCase):
     def test_lookup(self):
         self.assertEqual(leveraged.underlying("nvdl"), ("NVDA", 2))
         self.assertIsNone(leveraged.underlying("NVDA"))
-        self.assertEqual(leveraged.funds_for("nvda"), ["NVDL"])
+        self.assertEqual(leveraged.funds_for("nvda"), ["NVD", "NVDL"])
 
     def test_fund_level_doubles_the_move(self):
         # stock 100 -> 95 (-5%) is -10% on a 2x fund at 40
         self.assertEqual(leveraged.fund_level(40, 100, 95, 2), 36.0)
         self.assertEqual(leveraged.fund_level(40, 100, 110, 2), 48.0)
+
+    def test_inverse_fund_moves_against_the_stock(self):
+        self.assertEqual(leveraged.underlying("NVD"), ("NVDA", -2))
+        self.assertEqual(leveraged.fund_level(10, 100, 105, -2), 9.0)  # stock +5%: inverse fund -10%
+        self.assertEqual(sorted(leveraged.funds_for("TSLA")), ["TSLL", "TSLQ", "TSLZ"])
 
 
 class HookBlocksTheFund(unittest.TestCase):
@@ -63,6 +68,13 @@ class FundPreflight(unittest.TestCase):
         self.assertIn("blocked", failed(checks))
         self.assertIn("leverage", {ch["check"] for ch in checks})
         self.assertEqual(seen, ["NVDA"])
+
+    def test_fund_direction_must_match(self):
+        bull = dict(direction="bullish", price=218, stop=212, target=230, asset="stock", legs=[])
+        bear = dict(direction="bearish", price=218, stop=224, target=206, asset="stock", legs=[])
+        self.assertNotIn("fund_direction", failed(preflight.evaluate(good(symbol="NVDL", **bull), ctx())))
+        self.assertIn("fund_direction", failed(preflight.evaluate(good(symbol="NVD", **bull), ctx())))
+        self.assertNotIn("fund_direction", failed(preflight.evaluate(good(symbol="NVD", **bear), ctx())))
 
 
 if __name__ == "__main__":

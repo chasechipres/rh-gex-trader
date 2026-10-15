@@ -90,9 +90,11 @@ def evaluate(c: Candidate, ctx: Context) -> list[dict]:
     blocked = sym if sym in ctx.blocks else stock if stock in ctx.blocks else None
     add("blocked", blocked is None, f"{blocked}: {ctx.blocks[blocked]}" if blocked else "not blocked")
     if fund:
-        add("leverage", fund[1] <= leveraged.MAX_LEVERAGE,
+        add("leverage", abs(fund[1]) <= leveraged.MAX_LEVERAGE,
             f"{fund[1]}x fund on {stock} (max {leveraged.MAX_LEVERAGE}x; time stop {leveraged.TIME_STOP_DAYS} "
             "trading days); --price/--stop/--target are the stock's")
+        needs = "bullish" if fund[1] > 0 else "bearish"  # a long fund needs the stock up, an inverse one down
+        add("fund_direction", c.direction == needs, f"{sym} gains when {stock} is {needs}; the plan says {c.direction}")
 
     try:
         rr = exits.reward_risk(c.direction, c.price, c.stop, c.target)

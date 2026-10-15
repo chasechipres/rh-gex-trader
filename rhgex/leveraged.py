@@ -13,8 +13,14 @@ FUNDS = {  # fund -> (underlying, daily leverage)
     "NBIL": ("NBIS", 2),   # GraniteShares 2x Long NBIS Daily
     "CRWG": ("CRWV", 2),   # Leverage Shares 2X Long CRWV Daily
     "AMDL": ("AMD", 2),    # GraniteShares 2x Long AMD Daily
+    # inverse: a bearish read on the stock without shorting (the account can't short)
+    "NVD": ("NVDA", -2),   # GraniteShares 2x Short NVDA Daily
+    "TSLQ": ("TSLA", -2),  # Tradr 2X Short TSLA Daily
+    "TSLZ": ("TSLA", -2),  # T-Rex 2X Inverse Tesla Daily Target
+    "MSTZ": ("MSTR", -2),  # T-Rex 2X Inverse MSTR Daily Target
+    "NBIZ": ("NBIS", -2),  # Tradr 2X Short NBIS Daily
 }
-MAX_LEVERAGE = 2           # funds above this are refused by preflight
+MAX_LEVERAGE = 2           # funds above this (either way) are refused by preflight
 TIME_STOP_DAYS = 5         # trading days a leveraged fund may sit without reaching 1R (daily reset decays it)
 
 
@@ -27,6 +33,7 @@ def funds_for(stock: str) -> list[str]:
 
 
 def fund_level(fund_price: float, stock_price: float, stock_level: float, leverage: int) -> float:
-    """The fund's price when the stock moves from stock_price to stock_level, at the fund's daily leverage.
+    """The fund's price when the stock moves from stock_price to stock_level, at the fund's daily leverage
+    (negative for an inverse fund, whose price falls as the stock rises).
     Exact within a day; over several days the daily reset makes it approximate, so re-translate each check."""
     return round(fund_price * (1 + leverage * (stock_level / stock_price - 1)), 2)
