@@ -310,8 +310,9 @@ exception, step 1). If there are no positions, no open orders, no open plans and
    4. **As soon as it fills, place the protective order (GTC):**
       - shares: `stop_market` sell at the plan's stop (whole shares; Robinhood only allows market orders
         for fractional shares, so fractional positions rely on the exit check instead). A leveraged fund's
-        stop goes at `lev`'s `fund_stop`; re-translate it with `lev` whenever the plan's stop moves (raise-stop,
-        breakeven at 1R), since the fund drifts from 2x over several days
+        stop goes at `lev`'s `fund_stop`; re-translate it whenever the plan's stop moves (raise-stop,
+        breakeven at 1R), since the fund drifts from 2x over several days: pass both quotes to `exits`
+        (`--price NVDA=PX --price NVDL=PX`) and it reports `fund_stop`; for breakeven use the fund's fill price
       - single-leg options: `stop_limit` sell-to-close, stop at `--premium-stop` (default: ~40% below the
         entry premium) and the limit about 10-15% below the stop, so a thin bid can't fill it at a fraction
         of its value. The underlying stop in the plan is still enforced by the exit check
