@@ -370,3 +370,16 @@ buy in a 401k may be permanently disallowed, so block those funds and use SPX/XS
 generally considered outside the wash-sale rules). It also misses wash sales through options on the same stock.
 For those, Claude logs every losing exit with `rhgex wash add`; `rhgex blocks` shows open windows as warnings, and
 `rhgex wash list --all` is the record to check at tax time.
+
+**Block the lookalikes too.** The hook matches exact symbols, so a block on one ticker doesn't cover funds that
+track the same thing. When you block a fund or stock, list its other share classes and issuers and the
+leveraged and inverse funds on it in the same entry. Whether a leveraged fund is "substantially identical" is
+unsettled, and blocking them also closes a side door into exposure you've ruled out. For example:
+
+| Blocking | Also block |
+|---|---|
+| An S&P 500 fund (SPY, VOO, IVV, SPLG, SPYM) | SSO, UPRO, SPXL (2-3x long); SH, SDS, SPXU, SPXS (inverse) |
+| A Nasdaq-100 fund (QQQ, QQQM) | QLD, TQQQ (2-3x long); PSQ, QID, SQQQ (inverse) |
+| A single stock | Its single-stock leveraged ETFs (Defiance, Tradr, Leverage Shares, GraniteShares and others list 2x long and short funds on popular names) |
+
+Single-stock funds launch often, so check again when you add a block (search "2x &lt;ticker&gt; ETF").
