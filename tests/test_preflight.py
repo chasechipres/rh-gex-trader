@@ -44,6 +44,12 @@ class Preflight(unittest.TestCase):
         self.assertIn("earnings", failed(preflight.evaluate(good(), c)))
         self.assertNotIn("earnings", failed(preflight.evaluate(good(earnings_play=True), c)))
 
+    def test_shorter_expiry_before_earnings(self):
+        c = ctx(earnings=lambda s: date(2026, 10, 28))
+        self.assertNotIn("dte", failed(preflight.evaluate(good(expiration="2026-10-23"), c)))  # 9 days, before
+        self.assertIn("dte", failed(preflight.evaluate(good(expiration="2026-10-20"), c)))  # 6 days: too short
+        self.assertIn("dte", failed(preflight.evaluate(good(expiration="2026-10-23"), ctx())))  # no earnings
+
     def test_liquidity(self):
         self.assertIn("liquidity_leg1", failed(preflight.evaluate(good(legs=[(1.00, 1.30, 2500)]), ctx())))  # 26%
         self.assertIn("liquidity_leg1", failed(preflight.evaluate(good(legs=[(3.10, 3.30, 200)]), ctx())))  # OI

@@ -219,7 +219,8 @@ exception, step 1). If there are no positions, no open orders, no open plans and
    - you have a defined exit: stop level (a price where the thesis is wrong) and a target
    - reward:risk is at least 1.5 from the current price (`plan add --price` refuses less; `--existing` is
      only for rebuilding the plan of a position already held, never for a new entry)
-   - options: prefer 14-45 DTE, liquid strikes (tight bid/ask, real open interest), defined risk only
+   - options: prefer 14-45 DTE (7-13 when the expiry ends before an earnings report that falls inside 45 days;
+     `preflight` allows it), liquid strikes (tight bid/ask, real open interest), defined risk only
      (long calls/puts or 1:1 verticals). Use limit orders at or near the mid.
    - **options first:** this is a high-growth account, so express trades with options whenever a liquid
      structure fits (verticals for expensive names or to cut cost). Use shares only when no option fits:
