@@ -429,7 +429,8 @@ def main() -> None:
     cl.add_argument("--target", type=float, help="his target")
     cl.add_argument("--invalid", type=float, help="the price that proves the call wrong")
     cl.add_argument("--by", help="deadline YYYY-MM-DD (default: 5 trading days after the post)")
-    cl.add_argument("--posted", help="post date YYYY-MM-DD (default today)")
+    cl.add_argument("--posted", help="'YYYY-MM-DD HH:MM' local time, as in the post note's name (default now); "
+                    "a date alone only for a post made before the open")
     cl.add_argument("--source", default="", help="the post link (saved in private/notes/posts/)")
     cl.add_argument("--note", default="")
 

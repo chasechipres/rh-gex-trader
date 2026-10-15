@@ -48,7 +48,7 @@ uv run python -m rhgex peak show                                                
 uv run python -m rhgex journal TICKER trade|skip|watch|exit --thesis "..." --confidence 0.7 --source "..."
 uv run python -m rhgex journal TICKER trade --type shares|call|put|spread ...   # --type is required for trades
 uv run python -m rhgex journal TICKER exit --pnl -6.50 --pnl-pct -40 --thesis "..." --confidence 1
-uv run python -m rhgex calls add TICKER --direction D --setup uptrend-dip|downtrend-dip|breakdown|breakout|range|other --level PX --target PX --invalid PX --source URL [--by YYYY-MM-DD]
+uv run python -m rhgex calls add TICKER --direction D --setup uptrend-dip|downtrend-dip|breakdown|breakout|range|other --level PX --target PX --invalid PX --source URL --posted "YYYY-MM-DD HH:MM" [--by YYYY-MM-DD]
 uv run python -m rhgex calls check|stats                         # score his open calls; hit rate by setup type
 uv run python -m rhgex record [--readme --account-value PX]   # live P/L; updates private/README.md
 uv run python -m rhgex sync [-m "msg"] [--pull]                  # commit private/, then pull + push it (if it has a remote)
@@ -191,7 +191,7 @@ exception, step 1). If there are no positions, no open orders, no open plans and
    unfamiliar; if it doesn't exist yet, write it from his pinned "Heatseeker for beginners" thread) when a
    post teaches something durable: how he reads gamma, which setups he favors, how his levels have played
    out. Keep a running record of his calls versus what actually happened: log every directional call (a
-   level, a target and a price that proves it wrong) with `calls add`, and run `calls check` once per cycle.
+   level, a target and a price that proves it wrong) with `calls add` (`--posted` is the post's time from its note name), and run `calls check` once per cycle.
    The setup is `downtrend-dip`/`uptrend-dip` for buying support against/with the trend, `breakdown`/
    `breakout` for a lost or reclaimed level. `calls stats` is his hit rate by setup: weigh his posts with it.
 4. **Check the account:** call `get_portfolio` for the agentic account (the hook records its value, and the

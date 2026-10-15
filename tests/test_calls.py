@@ -37,6 +37,28 @@ class Calls(unittest.TestCase):
         self.assertEqual(calls.score(c, [(D("2026-10-22"), 740, 700)], D("2026-10-22")), ("expired", "2026-10-21"))
         self.assertEqual(calls.score(c, [(D("2026-10-13"), 800, 700)], D("2026-10-14"))[0], "open")  # before post
 
+    def test_post_time_scores_the_post_day_from_the_post_on(self):
+        c = self.add(symbol="INTC", direction="bearish", setup="breakdown", level=110, target=105, invalid=111.5,
+                     posted="2026-10-08 08:45", by="2026-10-16")
+        self.assertEqual(c["posted_at"], "2026-10-08T08:45")
+        day = [(D("2026-10-08"), 111.6, 105.24)]  # the 111.6 high came before the post
+        self.assertEqual(calls.score(c, day, D("2026-10-08"), post_day=(109.72, 104.9)), ("hit", "2026-10-08"))
+        self.assertEqual(calls.score(c, day, D("2026-10-08"), post_day=None), ("open", None))  # no bars: skip the day
+        later = day + [(D("2026-10-09"), 107, 104)]
+        self.assertEqual(calls.score(c, later, D("2026-10-09")), ("hit", "2026-10-09"))
+
+    def test_posted_defaults_to_now_and_a_date_alone_has_no_time(self):
+        self.assertIn("posted_at", self.add(symbol="A", posted=None))
+        self.assertNotIn("posted_at", self.add(symbol="B"))
+
+    def test_check_passes_the_post_day_range(self):
+        self.add(symbol="INTC", direction="bearish", setup="breakdown", level=110, target=105, invalid=111.5,
+                 posted="2026-10-08 08:45")
+        seen = []
+        changed = calls.check(D("2026-10-08"), self.path, bars=lambda s, start: [(D("2026-10-08"), 111.6, 105.24)],
+                              after=lambda s, at: seen.append(at) or (109.72, 104.9))
+        self.assertEqual(([c["result"] for c in changed], seen), (["hit"], ["2026-10-08T08:45"]))
+
     def test_check_and_stats(self):
         self.add()
         self.add(symbol="ASTS", direction="bullish", setup="downtrend-dip", level=42, target=45, invalid=40)
