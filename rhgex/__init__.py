@@ -6,6 +6,7 @@
   check     dry-run an order (JSON) through the exact PreToolUse hook
   blocks    show active wash-sale blocks, logged wash-sale windows and limits
   wash      log a loss exit and its 30-day wash-sale window (logging only), or list them
+  watch     price triggers for journaled watches, checked every exit check
   journal   log a trade thesis or decision to private/logs/journal.jsonl
   record    track record: live realized P/L and win rate by confidence (--readme updates private/README.md)
   preflight pre-trade checklist: every mechanical entry rule, before plan add
@@ -200,6 +201,23 @@ def cmd_exits(args) -> None:
     out(exits.check(prices))
 
 
+def cmd_watch(args) -> None:
+    from . import watches
+
+    try:
+        if args.action == "add":
+            side, level = ("above", args.above) if args.above is not None else ("below", args.below)
+            out(watches.add(args.symbol, side, level, args.note, args.until, args.source))
+        elif args.action == "close":
+            out(watches.close(args.symbol, args.reason))
+        elif args.action == "check":
+            out(watches.check(dict((k, float(v)) for k, v in (p.split("=") for p in args.price))))
+        else:
+            out(watches.open_watches(watches.load()))
+    except ValueError as e:
+        sys.exit(f"refused: {e}")
+
+
 def cmd_wash(args) -> None:
     from . import washlog
 
@@ -350,6 +368,18 @@ def main() -> None:
     ex = sub.add_parser("exits", help="check open plans against current prices")
     ex.add_argument("--price", action="append", default=[], help="SYMBOL=PX override, e.g. from Robinhood quotes")
 
+    wt = sub.add_parser("watch", help="price triggers for journaled watches: add, check (every exit check), close, list")
+    wt.add_argument("action", choices=["add", "check", "close", "list"])
+    wt.add_argument("symbol", nargs="?", default="")
+    side = wt.add_mutually_exclusive_group()
+    side.add_argument("--above", type=float, help="fires when the underlying is at or above this")
+    side.add_argument("--below", type=float, help="fires when the underlying is at or below this")
+    wt.add_argument("--until", help="last live day YYYY-MM-DD (default: 2 trading days)")
+    wt.add_argument("--note", default="", help="what to do when it fires")
+    wt.add_argument("--source", default="", help="the post behind the watch")
+    wt.add_argument("--price", action="append", default=[], help="check: SYMBOL=PX from Robinhood quotes")
+    wt.add_argument("--reason", default="", help="close: why")
+
     w = sub.add_parser("wash", help="log a loss exit's 30-day wash-sale window (logging only), or list them")
     w.add_argument("action", choices=["add", "list"])
     w.add_argument("symbol", nargs="?", default="", help="the underlying, e.g. XYZ for an XYZ put")
@@ -400,8 +430,12 @@ def main() -> None:
         p.error("plan add/close needs a symbol")
     if args.cmd == "plan" and args.action == "add" and (args.stop is None or args.target is None):
         p.error("plan add needs --stop and --target")
+    if args.cmd == "watch" and args.action in ("add", "close") and not args.symbol:
+        p.error("watch add/close needs a symbol")
+    if args.cmd == "watch" and args.action == "add" and args.above is None and args.below is None:
+        p.error("watch add needs --above or --below")
     if args.cmd == "wash" and args.action == "add" and (not args.symbol or args.loss is None):
         p.error("wash add needs a symbol and --loss")
     {"research": cmd_research, "gex": cmd_gex, "check": cmd_check, "blocks": cmd_blocks,
-     "fit": cmd_fit, "plan": cmd_plan, "exits": cmd_exits, "wash": cmd_wash, "journal": cmd_journal, "record": cmd_record, "size": cmd_size,
+     "fit": cmd_fit, "plan": cmd_plan, "exits": cmd_exits, "wash": cmd_wash, "watch": cmd_watch, "journal": cmd_journal, "record": cmd_record, "size": cmd_size,
      "lock": cmd_lock, "peak": cmd_peak, "preflight": cmd_preflight, "init": cmd_init, "sync": cmd_sync}[args.cmd](args)
