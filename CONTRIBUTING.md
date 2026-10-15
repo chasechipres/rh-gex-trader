@@ -5,7 +5,7 @@ guardrails needs a test. Changes made with Claude follow the same rules (CLAUDE.
 
 ## Get set up
 
-Follow the README's [Setup](README.md#setup), then type `/setup` in `claude`. You need your own private folder
+Follow [Setup](docs/setup.md#install), then type `/setup` in `claude`. You need your own private folder
 (`rhgex init`) only to run cycles; the tests don't use it.
 
 ## What goes where
@@ -21,6 +21,41 @@ Follow the README's [Setup](README.md#setup), then type `/setup` in `claude`. Yo
 Nothing personal goes in this repo: no account values, positions, journal entries, private-repo links or
 credentials. The pre-commit hook scans for secrets; don't skip it with `--no-verify`.
 
+## Repo layout
+
+```
+rh-gex-trader/              shared (this repo)
+├── CLAUDE.md               the playbook Claude follows; imports private/CLAUDE.md
+├── CONTRIBUTING.md         how to change this repo
+├── .mcp.json               Robinhood MCP server (URL only, no credentials)
+├── .claude/                guardrail hooks, permission lists, the /setup and /trading-day skills
+├── .githooks/pre-commit    secret scan (both repos) + tests (this repo)
+├── docs/                   setup, running it, guardrails and exits, the 24/7 cloud server
+├── rhgex/
+│   ├── __init__.py         the command line
+│   ├── paths.py            where everything lives
+│   ├── init.py             set up and sync private/
+│   ├── hook.py             pre/post hooks on every Robinhood call
+│   ├── guardrails.py       order checks
+│   ├── exits.py            exit plans and the exit check
+│   ├── watches.py          watch triggers, checked every exit check
+│   ├── dailyloss.py        daily loss stop and drawdown pause
+│   ├── sizing.py           position size for a fixed % risk
+│   ├── preflight.py        pre-trade checklist
+│   ├── lock.py             one machine at a time
+│   ├── record.py           track record
+│   ├── calls.py            the source's calls, scored
+│   ├── washlog.py          wash-sale log (logging only)
+│   ├── market.py           technicals + fundamentals (Yahoo Finance)
+│   ├── indicators.py       EMA, RSI, ATR
+│   ├── gex.py              gamma profile (Cboe delayed chains)
+│   └── fit.py              option structures that fit the risk budget
+├── templates/private/      what `rhgex init` copies into private/
+├── scripts/                owner tools
+├── tests/                  unit tests, plus doc facts vs the code
+└── private/                YOUR private repo, ignored here
+```
+
 ## Make the change
 
 1. **Fork first** unless you've been added as a collaborator: only collaborators can push branches here.
@@ -33,9 +68,9 @@ credentials. The pre-commit hook scans for secrets; don't skip it with `--no-ver
 3. Commit with a short imperative subject (≤ 72 chars, e.g. "Add stale-rules check to exit step 1") and a body
    only when the why isn't obvious.
 4. Test: `uv run python -m unittest discover -s tests -t .` (or `uv run pytest`). The pre-commit hook runs the
-   tests when code, templates, `README.md`, `CLAUDE.md` or `.claude/settings.json` is staged, and
-   `tests/test_readme.py` checks README facts against the code, so a change that leaves the README stale is
-   refused. Fix the README in the same commit.
+   tests when code, templates, the docs (`README.md`, `docs/`, this file), `CLAUDE.md` or
+   `.claude/settings.json` is staged, and `tests/test_readme.py` checks facts in the docs against the code, so a
+   change that leaves them stale is refused. Fix the docs in the same commit.
    - **Hook or guardrails changes** (`rhgex/hook.py`, `guardrails.py`, `dailyloss.py`, `exits.py`, `paths.py`)
      need a test that covers them. Changes should fail closed: what the hook can't verify, it refuses.
    - **New limits** go in `templates/private/guardrails.toml` with a comment and a cautious value; `rhgex init`
