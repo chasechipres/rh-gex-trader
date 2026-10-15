@@ -147,6 +147,18 @@ def cmd_peak(args) -> None:
     out({a: {k: r.get(k) for k in ("date", "total_value", "start_value", "peak_value")} for a, r in accounts.items()})
 
 
+def order_cap(account: float) -> float | None:
+    """The hook's per-order dollar cap for this account value, or None without a guardrails.toml."""
+    from . import guardrails
+
+    if not guardrails.CONFIG.exists():
+        return None
+    try:
+        return guardrails.limit(guardrails.load()["limits"], "order", account)
+    except ValueError:
+        return None
+
+
 def cmd_size(args) -> None:
     from . import sizing
 
@@ -154,7 +166,8 @@ def cmd_size(args) -> None:
         if args.option_cost is not None:
             out(sizing.option_contracts(args.account, args.option_cost, args.pct or sizing.OPTION_RISK_PCT))
         elif args.entry is not None and args.stop is not None:
-            out(sizing.shares(args.account, args.entry, args.stop, args.pct or sizing.SHARE_RISK_PCT))
+            out(sizing.shares(args.account, args.entry, args.stop, args.pct or sizing.SHARE_RISK_PCT,
+                              max_cost=order_cap(args.account)))
         else:
             sys.exit("refused: pass --option-cost, or --entry and --stop")
     except ValueError as e:
