@@ -196,4 +196,7 @@ def check(prices: dict[str, float] | None = None, today: date | None = None, pat
                        "stop": p["stop"], "target": p["target"], "expiration": p["expiration"],
                        "earnings": er.isoformat() if er else None,
                        "signals": evaluate(p, px, today, er) or ["HOLD"]})
+        fund_px = prices.get(p["symbol"]) if p.get("underlying") else None
+        if fund_px and passed:  # where the fund's resting stop belongs for the plan's current stop on the stock
+            report[-1]["fund_stop"] = leveraged.fund_level(fund_px, passed, p["stop"], p["leverage"])
     return report

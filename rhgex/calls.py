@@ -6,6 +6,9 @@ stats` gives the hit rate by setup type, so trust in each kind of call comes fro
 A day that touches both the target and the invalidation counts as a fail (no intraday order to tell).
 A call posted during the session is scored on its post day only from the post time on (5-minute bars), so a
 move made before he posted can't count for or against him.
+
+A conditional call ("above 9.5, 10 is next") has a trigger: it's scored only from the session after price first
+trades through the trigger, and one that never triggers by its deadline is `not_triggered`, outside the hit rate.
 """
 
 import json
@@ -36,7 +39,8 @@ def save(calls: list[dict], path: Path = CALLS) -> None:
 
 
 def add(symbol: str, direction: str, setup: str, level: float, target: float, invalid: float, source: str,
-        by: str | None = None, posted: str | None = None, note: str = "", path: Path = CALLS) -> dict:
+        by: str | None = None, posted: str | None = None, note: str = "", path: Path = CALLS,
+        trigger: tuple[str, float] | None = None) -> dict:
     """posted: 'YYYY-MM-DD HH:MM' in this computer's local time (the post note's name), or a date alone for a
     post made before the open. Default: now."""
     if direction not in ("bullish", "bearish"):
@@ -46,6 +50,12 @@ def add(symbol: str, direction: str, setup: str, level: float, target: float, in
     bull = direction == "bullish"
     if (bull and not invalid < target) or (not bull and not invalid > target):
         raise ValueError(f"a {direction} call needs the invalidation {'below' if bull else 'above'} the target")
+    if trigger:
+        side, px = trigger
+        if side not in ("above", "below"):
+            raise ValueError("trigger side must be above or below")
+        if not min(invalid, target) < px < max(invalid, target):
+            raise ValueError(f"trigger {px} must sit between the invalidation {invalid} and the target {target}")
     posted_at = datetime.fromisoformat(posted) if posted and len(posted) > 10 else None if posted else datetime.now()
     posted_d = posted_at.date() if posted_at else date.fromisoformat(posted)
     by_d = date.fromisoformat(by) if by else add_trading_days(posted_d, DEFAULT_DAYS)
@@ -59,6 +69,8 @@ def add(symbol: str, direction: str, setup: str, level: float, target: float, in
          "note": note, "result": "open", "logged": datetime.now().isoformat(timespec="seconds")}
     if posted_at:
         c["posted_at"] = posted_at.isoformat(timespec="minutes")
+    if trigger:
+        c["trigger"] = {"side": trigger[0], "price": trigger[1]}
     calls.append(c)
     save(calls, path)
     return c
@@ -70,6 +82,8 @@ def score(call: dict, bars: list[tuple[date, float, float]], today: date,
     day, for a call with posted_at; without it that day is skipped. Returns (result, the day it resolved)."""
     bull = call["direction"] == "bullish"
     posted = date.fromisoformat(call["posted"])
+    trig = call.get("trigger")
+    armed = trig is None
     for day, high, low in bars:
         if day < posted or day > date.fromisoformat(call["by"]):
             continue
@@ -77,13 +91,18 @@ def score(call: dict, bars: list[tuple[date, float, float]], today: date,
             if post_day is None:
                 continue
             high, low = post_day
+        if not armed:  # the order of moves inside the trigger day is unknown, so scoring starts the next session
+            armed = high >= trig["price"] if trig["side"] == "above" else low <= trig["price"]
+            continue
         failed = low <= call["invalid"] if bull else high >= call["invalid"]
         hit = high >= call["target"] if bull else low <= call["target"]
         if failed:
             return "fail", day.isoformat()
         if hit:
             return "hit", day.isoformat()
-    return ("expired", call["by"]) if today > date.fromisoformat(call["by"]) else ("open", None)
+    if today <= date.fromisoformat(call["by"]):
+        return "open", None
+    return ("expired" if armed else "not_triggered"), call["by"]
 
 
 def daily_bars(symbol: str, start: str) -> list[tuple[date, float, float]]:
@@ -129,11 +148,12 @@ def check(today: date | None = None, path: Path = CALLS, bars=daily_bars, after=
 
 
 def stats(calls: list[dict]) -> dict:
-    """Hit rate by setup type and direction, over resolved calls (expired ones count as misses)."""
+    """Hit rate by setup type and direction, over resolved calls (expired ones count as misses; calls whose
+    trigger never traded are counted apart and left out of the rate)."""
     out: dict[str, dict] = {}
     for c in calls:
         for key in (c["setup"], f"all {c['direction']}"):
-            s = out.setdefault(key, {"hit": 0, "fail": 0, "expired": 0, "open": 0})
+            s = out.setdefault(key, {"hit": 0, "fail": 0, "expired": 0, "open": 0, "not_triggered": 0})
             s[c["result"]] += 1
     for s in out.values():
         done = s["hit"] + s["fail"] + s["expired"]
