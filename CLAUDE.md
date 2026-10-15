@@ -240,6 +240,17 @@ exception, step 1). If there are no positions, no open orders, no open plans and
      and so on). An index position (SPX/XSP) counts toward every position betting the same direction.
    - **fresh posts only:** act only on posts from the last 2 trading days. An older setup is a `watch` until
      he posts on it again or today's gamma map still shows the same levels.
+   - **breakdowns count too (trial from 2026-10-15, reviewed by 2026-10-30):** when he names a level that
+     must hold (a pivot, king or "last support") and price loses it, that's a bearish setup, not just a failed
+     long. Trade it only when all of these hold:
+     - it's still below the level at two checks in a row (a cycle and the next exit check)
+     - the name is in negative gamma (below the `gex` zero-gamma flip)
+     - the trend is down or mixed
+     Express it with a put or put vertical (`fit --direction bearish`). The stop is just above the lost level
+     (a reclaim means the thesis is wrong); the target is his next level down or the put wall. While price
+     still holds the level, a `watch` with its trigger `--below` the level catches the break. Start the journal
+     thesis with `[breakdown trial]` so the weekly review can score these separately: keep, change or drop
+     the rule after 10 of them or by 2026-10-30, whichever comes first.
    - **no revenge trades:** after a stop-out, no re-entry in that name for 2 trading days unless he posts a
      new setup with new levels.
 7. **Journal every decision**, traded or skipped, with `rhgex journal`, citing the post that prompted it
