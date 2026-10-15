@@ -4,7 +4,7 @@ The trader needs a session that stays open and a computer that stays awake. If y
 machine on, run it on an Oracle Cloud **Always Free** server instead. This is the high-level walkthrough; each
 step names what to click or type, and the [README](../README.md) still covers the trader itself.
 
-**You need:** everything in the README's Quick start (Robinhood agentic account, your subscription to the
+**You need:** everything in the README's [Quick start](../README.md#quick-start) (Robinhood agentic account, your subscription to the
 source on X, a Claude Pro or Max plan, a GitHub account), plus a credit card for Oracle's identity check.
 A domain and a free Cloudflare account are only needed if you also use the spare capacity for a [website](#extra-what-i-did-with-the-spare-capacity).
 
@@ -137,7 +137,7 @@ to **X** in the same browser.
 ## 4. Start the trader
 
 In a terminal **inside the remote desktop** (so browser logins land in that Chrome), start a tmux session and
-follow the README's Setup:
+follow [Setup](setup.md#install):
 
 ```sh
 tmux new -s trader
@@ -153,9 +153,9 @@ claude                                     # then: /login, /chrome → Enabled b
 - **Then the steps only you can do:** `/mcp` → robinhood-trading → Authenticate (it opens in the desktop's
   Chrome), and confirm `/chrome` shows the extension connected.
 - **Start the day:** `/trading-day`. From then on the session schedules its own cycles each day, as on any
-  machine. Use the README's session-start command whenever you restart it.
+  machine. Use the [session-start command](running.md#using-more-than-one-machine) whenever you restart it.
 
-Already trading on another computer? Hand off from it first (README: Using more than one machine), and close
+Already trading on another computer? Hand off from it first ([Using more than one machine](running.md#using-more-than-one-machine)), and close
 that session so both don't run exit checks.
 
 ## 5. Day to day

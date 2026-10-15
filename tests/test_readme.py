@@ -1,6 +1,6 @@
-"""README facts that mirror the code or config. Runs in the pre-commit hook, so a change that makes the README
-stale fails the commit; fix the README (or the check) in the same commit. The README describes the defaults in
-templates/private/guardrails.toml, not anyone's private copy."""
+"""Doc facts that mirror the code or config (README.md, docs/*.md and CONTRIBUTING.md, checked as one text). Runs in
+the pre-commit hook, so a change that makes the docs stale fails the commit; fix the docs (or the check) in the same
+commit. The docs describe the defaults in templates/private/guardrails.toml, not anyone's private copy."""
 import json
 import re
 import unittest
@@ -9,14 +9,15 @@ from pathlib import Path
 from rhgex import dailyloss, exits, guardrails, lock, paths, sizing
 
 ROOT = Path(__file__).resolve().parent.parent
-README = (ROOT / "README.md").read_text(encoding="utf-8")
+DOC_FILES = [ROOT / "README.md", ROOT / "CONTRIBUTING.md", *sorted((ROOT / "docs").glob("*.md"))]
+DOCS = "\n".join(f.read_text(encoding="utf-8") for f in DOC_FILES)
 CLAUDE_MD = (ROOT / "CLAUDE.md").read_text(encoding="utf-8")
 
 
 def table_row(label: str) -> str:
-    m = re.search(rf"^\| {re.escape(label)} \|(.*)\|$", README, re.M)
+    m = re.search(rf"^\| {re.escape(label)} \|(.*)\|$", DOCS, re.M)
     if not m:
-        raise AssertionError(f"README limits table has no '{label}' row")
+        raise AssertionError(f"docs limits table has no '{label}' row")
     return m.group(1)
 
 
@@ -60,18 +61,18 @@ class LimitsTable(unittest.TestCase):
 
 class CommandsExist(unittest.TestCase):
     def test_readme_commands(self):
-        self.assertEqual(set(re.findall(r"\brhgex (\w+)", README)) - subcommands(), set())
+        self.assertEqual(set(re.findall(r"\brhgex (\w+)", DOCS)) - subcommands(), set())
 
     def test_claude_md_commands(self):
         self.assertEqual(set(re.findall(r"\brhgex (\w+)", CLAUDE_MD)) - subcommands(), set())
 
     def test_readme_tool_examples_name_real_subcommands(self):
-        self.assertEqual(set(re.findall(r"-m rhgex (\w+)", README)) - subcommands(), set())
+        self.assertEqual(set(re.findall(r"-m rhgex (\w+)", DOCS)) - subcommands(), set())
 
 
 class RepoLayout(unittest.TestCase):
     def test_every_module_listed(self):
-        tree = README.split("## Repo layout", 1)[1].split("```", 2)[1]
+        tree = DOCS.split("## Repo layout", 1)[1].split("```", 2)[1]
         listed = set(re.findall(r"([a-z_]+\.py)\b", tree.split("rhgex/", 1)[1].split("templates/", 1)[0]))
         actual = {p.name for p in (ROOT / "rhgex").glob("*.py")} - {"__main__.py"}
         self.assertEqual(listed, actual)
@@ -79,12 +80,12 @@ class RepoLayout(unittest.TestCase):
     def test_permission_lists_match(self):
         perms = json.loads((ROOT / ".claude" / "settings.json").read_text(encoding="utf-8"))["permissions"]
         deny, ask = perms["deny"], perms.get("ask", [])
-        denied = re.search(r"Claude can't edit `([^`]+)`: it's on its deny list", README)
-        self.assertIsNotNone(denied, "README should say what Claude can't edit")
+        denied = re.search(r"Claude can't edit `([^`]+)`: it's on its deny list", DOCS)
+        self.assertIsNotNone(denied, "docs should say what Claude can't edit")
         self.assertTrue(any(f"Edit(./{denied.group(1)}" in d for d in deny), f"{denied.group(1)} isn't denied")
         asks = re.search(r"Editing the hook\s+code \(([^)]*)\), your limits\s+\(`([^`]+)`\) or `([^`]+)` asks you first",
-                         README)
-        self.assertIsNotNone(asks, "README should say Claude asks before editing the hook code, limits and settings")
+                         DOCS)
+        self.assertIsNotNone(asks, "docs should say Claude asks before editing the hook code, limits and settings")
         hook_files = {Path(f).name for f in re.findall(r"`([\w./]+\.py)`", asks.group(1))}
         asked_code = {Path(m).name for a in ask for m in re.findall(r"Edit\(\./rhgex/([\w.]+)\)", a)}
         self.assertEqual(hook_files, asked_code)
@@ -98,18 +99,18 @@ class ExitAndSizingFacts(unittest.TestCase):
         code = set(re.findall(r'out\.append\("([A-Z_0-9]+)"\)', (ROOT / "rhgex" / "exits.py").read_text(encoding="utf-8")))
         code.discard("NO_PRICE")
         for sig in code:
-            self.assertIn(sig, README)
+            self.assertIn(sig, DOCS)
 
     def test_expiry_days(self):
         words = {1: "one", 2: "two", 3: "three", 4: "four", 5: "five"}
-        self.assertIn(f"closes options {words[exits.EXPIRY_EXIT_DAYS]} days before expiry", README)
+        self.assertIn(f"closes options {words[exits.EXPIRY_EXIT_DAYS]} days before expiry", DOCS)
 
     def test_risk_per_trade(self):
         self.assertEqual(sizing.OPTION_RISK_PCT, sizing.SHARE_RISK_PCT)
-        self.assertIn(f"**{sizing.OPTION_RISK_PCT:g}% of the account**", README)
+        self.assertIn(f"**{sizing.OPTION_RISK_PCT:g}% of the account**", DOCS)
 
     def test_lock_hours(self):
-        self.assertIn(f"under {lock.STALE_HOURS} hours old", README)
+        self.assertIn(f"under {lock.STALE_HOURS} hours old", DOCS)
 
 
 if __name__ == "__main__":
