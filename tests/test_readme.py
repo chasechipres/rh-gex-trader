@@ -6,7 +6,7 @@ import re
 import unittest
 from pathlib import Path
 
-from rhgex import dailyloss, exits, guardrails, lock, paths, sizing
+from rhgex import dailyloss, exits, guardrails, leveraged, lock, paths, sizing
 
 ROOT = Path(__file__).resolve().parent.parent
 DOC_FILES = [ROOT / "README.md", ROOT / "CONTRIBUTING.md", *sorted((ROOT / "docs").glob("*.md"))]
@@ -108,6 +108,9 @@ class ExitAndSizingFacts(unittest.TestCase):
     def test_risk_per_trade(self):
         self.assertEqual(sizing.OPTION_RISK_PCT, sizing.SHARE_RISK_PCT)
         self.assertIn(f"**{sizing.OPTION_RISK_PCT:g}% of the account**", DOCS)
+
+    def test_time_stops(self):
+        self.assertIn(f"{exits.SHARE_TIME_STOP_DAYS}-trading-day time stop ({leveraged.TIME_STOP_DAYS} for", DOCS)
 
     def test_lock_hours(self):
         self.assertIn(f"under {lock.STALE_HOURS} hours old", DOCS)
