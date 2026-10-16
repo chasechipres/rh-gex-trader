@@ -89,6 +89,9 @@ What's effective about it:
   don't run exit checks.
 - **Shared caps.** The order ledger syncs, so daily limits count orders from every machine (rows hold only time,
   symbol, side, cost and order id).
+- **Shared plans, watches and calls.** Exit plans, open watches (`state/watches.json`) and the source's scored calls
+  (`logs/calls.json`) sync too, so the next machine tests the same triggers. A private folder made before
+  watches and calls synced gets them added to its `.gitignore` allow-list by its next `rhgex sync`.
 - **Local on purpose:** `private/state/account.json` (account values), so each machine keeps its own drawdown peak.
 - **Time zones:** cron uses each machine's clock. If they differ, say so in `private/CLAUDE.md`.
 

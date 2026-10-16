@@ -107,7 +107,7 @@ clock; Eastern is the template's default), and install the tools, a lightweight 
 export DEBIAN_FRONTEND=noninteractive               # so the upgrade doesn't stop on a config-file prompt
 sudo -E apt update && sudo -E apt -y full-upgrade
 sudo timedatectl set-timezone America/New_York     # or America/Chicago, America/Los_Angeles, ...
-sudo -E apt install -y git gh gitleaks tmux xfce4 xfce4-goodies xrdp
+sudo -E apt install -y git gh gitleaks tmux xfce4 xfce4-goodies xrdp   # apt's gitleaks is older; the hook handles it
 curl -LsSf https://astral.sh/uv/install.sh | sh
 curl -fsSL https://claude.ai/install.sh | bash
 curl -fLo /tmp/chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_arm64.deb
@@ -152,6 +152,7 @@ follow [Setup](setup.md#install):
 ```sh
 tmux new -s trader
 gh auth login --web --git-protocol https && gh auth setup-git
+git config --global user.name "Your Name" && git config --global user.email "you@example.com"   # rhgex sync commits
 gh repo clone chasechipres/rh-gex-trader && cd rh-gex-trader
 claude                                     # then: /login, /chrome → Enabled by default, /setup
 ```

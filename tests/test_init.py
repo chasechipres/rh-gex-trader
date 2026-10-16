@@ -216,6 +216,34 @@ class Sync(Base):
         with self.assertRaises(ValueError):
             init.sync("t", private=self.private)
 
+    def test_every_synced_file_is_tracked(self):
+        self.init()
+        for rel in init.SYNCED:
+            (self.private / rel).parent.mkdir(parents=True, exist_ok=True)
+            (self.private / rel).write_text("[]")
+        (self.private / "state" / "account.json").write_text("{}")
+        self.assertNotIn("unignored", init.sync("t", private=self.private))
+        tracked = subprocess.run(["git", "ls-files"], cwd=self.private, capture_output=True, text=True,
+                                 env=init.clean_env()).stdout.split()
+        self.assertTrue(set(init.SYNCED) <= set(tracked))
+        self.assertNotIn("state/account.json", tracked)
+
+    def test_an_older_gitignore_gets_the_missing_files_unignored(self):
+        self.init()
+        gi = self.private / ".gitignore"
+        gi.write_text("state/*\n!state/plans.json\nlogs/*\n!logs/journal.jsonl")  # before watches/calls synced
+        for rel in ("state/watches.json", "logs/calls.json"):
+            (self.private / rel).parent.mkdir(parents=True, exist_ok=True)
+            (self.private / rel).write_text("[]")
+        res = init.sync("t", private=self.private)
+        self.assertIn("state/watches.json", res["unignored"])
+        self.assertIn("logs/calls.json", res["unignored"])
+        self.assertNotIn("state/plans.json", res["unignored"])
+        tracked = subprocess.run(["git", "ls-files"], cwd=self.private, capture_output=True, text=True,
+                                 env=init.clean_env()).stdout.split()
+        self.assertTrue({"state/watches.json", "logs/calls.json"} <= set(tracked))
+        self.assertEqual(init.unignore_synced(self.private), [])  # idempotent
+
 
 class HookEnvironment(Base):
     def test_git_ignores_a_hook_s_repo_variables(self):

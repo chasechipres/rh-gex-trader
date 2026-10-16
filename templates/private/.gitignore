@@ -1,12 +1,15 @@
-# Synced: guardrails.toml, CLAUDE.md, README.md, notes/, logs/journal.jsonl, logs/wash_sales.jsonl,
-# state/plans.json, state/ledger.jsonl, state/session.lock. Everything else in logs/ and state/ stays local.
+# Synced: guardrails.toml, CLAUDE.md, README.md, notes/, logs/journal.jsonl, logs/wash_sales.jsonl, logs/calls.json,
+# state/plans.json, state/ledger.jsonl, state/session.lock, state/watches.json. Everything else in logs/ and state/
+# stays local. `rhgex sync` adds any of these an older copy of this file still ignores (rhgex/init.py SYNCED).
 state/*
 !state/plans.json
 !state/ledger.jsonl
 !state/session.lock
+!state/watches.json
 logs/*
 !logs/journal.jsonl
 !logs/wash_sales.jsonl
+!logs/calls.json
 *.log
 .env
 .env.*

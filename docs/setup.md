@@ -41,8 +41,8 @@ personal lands in the shared repo.
 | `CLAUDE.md` | autonomy grant, account goal, time zone and cron times, why each symbol is blocked | you |
 | `README.md` | your track record | `rhgex record --readme` |
 | `notes/` | saved posts, insights about the source, weekly reviews | Claude |
-| `logs/` | `journal.jsonl` (every decision), `wash_sales.jsonl` (loss exits) | Claude, via `rhgex` |
-| `state/` | `plans.json`, `ledger.jsonl`, `session.lock` (synced); `account.json` (never leaves the machine) | `rhgex` and the hook |
+| `logs/` | `journal.jsonl` (every decision), `wash_sales.jsonl` (loss exits), `calls.json` (the source's calls, scored) | Claude, via `rhgex` |
+| `state/` | `plans.json`, `ledger.jsonl`, `session.lock`, `watches.json` (synced); `account.json` (never leaves the machine) | `rhgex` and the hook |
 
 **Pick how it's stored:**
 
