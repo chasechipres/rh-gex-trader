@@ -160,7 +160,12 @@ claude                                     # then: /login, /chrome → Enabled b
   `claude setup-token` token.
 - **`/setup`** detects Linux, checks the tools, and makes or clones your private folder (`--github` is the right
   choice here, so a lost server loses nothing). Already trading elsewhere? Have it clone your existing private
-  repo rather than make a new one, so your limits, journal and exit plans come with you.
+  repo rather than make a new one, so your limits, journal and exit plans come with you. Your account values
+  (`private/state/account.json`) stay on the machine that made them, so the first cycle here asks for the agentic
+  account's number once; ask Claude to look it up with the Robinhood tools instead of typing it. Its drawdown peak
+  starts fresh on this machine.
+- **`/setup` adds the `rhgex-start` alias** to `~/.bashrc`, which a terminal opened before `/setup` hasn't
+  loaded: run `source ~/.bashrc` once there (new terminals and tmux windows pick it up on their own).
 - **Then the steps only you can do:** `/mcp` → robinhood-trading → Authenticate (it opens in the desktop's
   Chrome), and confirm `/chrome` shows the extension connected.
 - **Start the day:** `/trading-day`. From then on the session schedules its own cycles each day, as on any
