@@ -79,7 +79,8 @@ exception, step 1). If there are no positions, no open orders, no open plans and
 one line and stop (after steps 5 and 6, if they apply).
 
 1. `git pull` (code and rules), then `uv sync` (dependencies), and `rhgex sync --pull` first: exit plans
-   (`private/state/plans.json`) and the order ledger are synced, and another machine may have changed them.
+   (`private/state/plans.json`), watches, his scored calls and the order ledger are synced, and another machine
+   may have changed them.
    **Stale rules:** note `git rev-parse HEAD` (and `git -C private rev-parse HEAD`) before pulling. If
    `git diff --name-only <old> HEAD -- CLAUDE.md .claude/` (or `-- CLAUDE.md` in `private/`) lists anything,
    this session is running on old rules. Finish this exit check (protection comes first) but place no new

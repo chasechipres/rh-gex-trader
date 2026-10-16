@@ -1,7 +1,12 @@
 #!/bin/sh
 # Block commits that contain secrets. Enabled via: git config core.hooksPath .githooks
 if command -v gitleaks >/dev/null 2>&1; then
-  gitleaks git --pre-commit --staged --redact --no-banner || { echo "gitleaks: possible secret staged, commit blocked"; exit 1; }
+  # gitleaks 8.19+ has `git`; older ones (Ubuntu's apt package is 8.16) only have `protect`.
+  if gitleaks git --help >/dev/null 2>&1; then
+    gitleaks git --pre-commit --staged --redact --no-banner || { echo "gitleaks: possible secret staged, commit blocked"; exit 1; }
+  else
+    gitleaks protect --staged --redact --no-banner || { echo "gitleaks: possible secret staged, commit blocked"; exit 1; }
+  fi
 else
   echo "warning: gitleaks not installed (Windows: winget install Gitleaks.Gitleaks | macOS: brew install gitleaks); falling back to basic check"
 fi

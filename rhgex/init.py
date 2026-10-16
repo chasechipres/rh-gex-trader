@@ -35,6 +35,10 @@ LEGACY = {
     "notes/reviews": "notes/reviews",
 }
 LOCAL_ONLY = {"state/account.json": "state/account.json"}  # never in git; carried over on every machine
+# Files under the ignored state/ and logs/ that every machine needs. `sync` un-ignores any of them an older
+# .gitignore still hides (init never overwrites it), so a watch or a scored call never stays on one machine.
+SYNCED = ("state/plans.json", "state/ledger.jsonl", "state/session.lock", "state/watches.json",
+          "logs/journal.jsonl", "logs/wash_sales.jsonl", "logs/calls.json")
 REPO_NAME = "rh-gex-trader-private"  # every user's private repo, under their own GitHub account
 AUTO = "auto"  # --clone with no URL: <gh user>/REPO_NAME
 
@@ -226,12 +230,25 @@ def init(clone: str = "", github: str = "", migrate: bool = False, root: Path = 
     return {**report, "status": status(private, template)}
 
 
+def unignore_synced(private: Path) -> list[str]:
+    """Add a `!path` line to private/.gitignore for each SYNCED file it still ignores. Returns those added."""
+    added = [r for r in SYNCED if git("check-ignore", "-q", "--no-index", r, cwd=private, check=False).returncode == 0]
+    if added:
+        gi = private / ".gitignore"
+        text = gi.read_text(encoding="utf-8") if gi.exists() else ""
+        text += "" if not text or text.endswith("\n") else "\n"
+        gi.write_text(text + "".join(f"!{r}\n" for r in added), encoding="utf-8")
+    return added
+
+
 def sync(message: str, pull_only: bool = False, private: Path = paths.PRIVATE) -> dict:
     """Commit private/, then pull and push it if it has a remote. A conflict stops here for the user."""
     if not (private / ".git").exists():
         raise ValueError("private/ isn't set up; run `uv run python -m rhgex init` (see README)")
     out: dict = {"committed": False, "pulled": False, "pushed": False}
     if not pull_only:
+        if added := unignore_synced(private):
+            out["unignored"] = added
         git("add", "-A", cwd=private)
         if git("diff", "--cached", "--quiet", cwd=private, check=False).returncode:
             res = git("commit", "-q", "-m", message, cwd=private, check=False)
