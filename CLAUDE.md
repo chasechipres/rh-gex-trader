@@ -396,3 +396,9 @@ Follow [CONTRIBUTING.md](CONTRIBUTING.md): `main` is protected, so every change 
 impact and Testing. Run `uv run pytest` first; hook or guardrail changes need a test. Never add `Co-Authored-By`
 or other Claude attribution lines, and nothing personal goes in the public repo. `private/` syncs with
 `rhgex sync`, never through a PR.
+
+**Track future work as issues.** When you spot hardening, a feature or a follow-up worth doing later that
+isn't part of the current task, propose a GitHub issue on chasechipres/rh-gex-trader: a short title, a
+checklist body, and labels (`feature`, `infra`, `security`, or `bug` for a defect). Ask before creating it:
+the repo is public, so no account numbers, positions, P/L, prices you traded at, or secrets. During a trading
+cycle, don't stop to file issues; note the idea in the cycle summary and propose it afterward.
