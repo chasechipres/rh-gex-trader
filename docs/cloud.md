@@ -101,19 +101,29 @@ Edit → Ephemeral public IP.
 ## 3. Set up the server
 
 Over SSH, update it, set its clock to the time zone your `private/CLAUDE.md` names (cron uses the server's
-clock; Eastern is the template's default), and install the tools and a lightweight desktop:
+clock; Eastern is the template's default), and install the tools, a lightweight desktop and Chrome:
 
 ```sh
-sudo apt update && sudo apt -y full-upgrade
+export DEBIAN_FRONTEND=noninteractive               # so the upgrade doesn't stop on a config-file prompt
+sudo -E apt update && sudo -E apt -y full-upgrade
 sudo timedatectl set-timezone America/New_York     # or America/Chicago, America/Los_Angeles, ...
-sudo apt install -y git gh gitleaks tmux xfce4 xfce4-goodies xrdp
+sudo -E apt install -y git gh gitleaks tmux xfce4 xfce4-goodies xrdp
 curl -LsSf https://astral.sh/uv/install.sh | sh
 curl -fsSL https://claude.ai/install.sh | bash
+curl -fLo /tmp/chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_arm64.deb
+sudo -E apt install -y /tmp/chrome.deb
 echo xfce4-session > ~/.xsession
 sudo adduser xrdp ssl-cert && sudo systemctl enable --now xrdp
+sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target   # never suspend
+sudo fallocate -l 4G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab   # swap, so a memory spike slows Chrome instead of killing it
 sudo passwd ubuntu                                  # the remote-desktop login; make it strong
 sudo reboot
 ```
+
+`sudo passwd` asks for the password interactively, so run it in a real terminal, not through Claude Code's `!`
+prefix (which has no terminal). The `~/.ssh/oracle.key` paths here are for macOS, Linux and bash; in Windows
+PowerShell write `$HOME\.ssh\oracle.key`.
 
 **Why a desktop:** the trader reads the source's posts in Chrome through Claude in Chrome, and the Robinhood MCP
 login opens a browser. A remote desktop gives the server a real Chrome you can log in to once, and it keeps
@@ -128,11 +138,11 @@ ssh -i ~/.ssh/oracle.key -L 13389:localhost:3389 ubuntu@<public IP>
 Leave that open, then point a Remote Desktop client at `localhost:13389` (Windows: Remote Desktop Connection;
 macOS: Microsoft's Windows App) and log in as `ubuntu` with the password you set.
 
-**Install Chrome** in the desktop: download the **64-bit ARM .deb** from [google.com/chrome](https://www.google.com/chrome/)
-and run `sudo apt install ./google-chrome-stable_*_arm64.deb` in a terminal. If your download page doesn't offer
-ARM, use [Brave](https://brave.com/linux/), which Claude Code also supports. Then add the
-[Claude in Chrome](https://claude.com/chrome) extension and sign in to it with your Claude account, and log in
-to **X** in the same browser.
+**Set up Chrome** in the desktop (Applications → Internet → Google Chrome). On first launch it asks you to create
+a **keyring** password, which encrypts its saved logins: reuse the desktop password, and expect to unlock it once
+after each reboot (leaving it blank skips the prompt but stores your X and Claude cookies unencrypted). Then add
+the [Claude in Chrome](https://claude.com/chrome) extension and sign in to it with your Claude account, and log
+in to **X** in the same browser.
 
 ## 4. Start the trader
 
@@ -149,7 +159,8 @@ claude                                     # then: /login, /chrome → Enabled b
 - **Log in with `/login`** using your Claude plan. Claude in Chrome doesn't work with an API key or a
   `claude setup-token` token.
 - **`/setup`** detects Linux, checks the tools, and makes or clones your private folder (`--github` is the right
-  choice here, so a lost server loses nothing).
+  choice here, so a lost server loses nothing). Already trading elsewhere? Have it clone your existing private
+  repo rather than make a new one, so your limits, journal and exit plans come with you.
 - **Then the steps only you can do:** `/mcp` → robinhood-trading → Authenticate (it opens in the desktop's
   Chrome), and confirm `/chrome` shows the extension connected.
 - **Start the day:** `/trading-day`. From then on the session schedules its own cycles each day, as on any
@@ -164,8 +175,9 @@ that session so both don't run exit checks.
 |---|---|
 | Check on it from anywhere (even a phone SSH app) | `ssh -i ~/.ssh/oracle.key ubuntu@<IP>`, then `tmux attach -t trader`; detach with **Ctrl+B, D** (never type `exit` there) |
 | Watch Chrome or re-log in to X or Robinhood | the remote desktop, through the tunnel |
+| Leave the remote desktop | close its window; **don't log out**, which closes Chrome and cuts off X and Claude in Chrome |
 | Update | it updates itself each cycle; when it asks for a restart, exit `claude` and run the session-start command in the same tmux window |
-| After a reboot (yours or Oracle maintenance) | remote desktop → open Chrome → terminal → `tmux new -s trader` → `cd rh-gex-trader` → session-start command → `/trading-day`. Resting stops protect positions meanwhile. |
+| After a reboot (yours or Oracle maintenance) | remote desktop → open Chrome (unlock the keyring) → terminal → `tmux new -s trader` → `cd rh-gex-trader` → session-start command → `/trading-day`. Resting stops protect positions meanwhile. |
 | Track results | your private repo on GitHub, synced every cycle |
 
 ## Extra: what I did with the spare capacity
