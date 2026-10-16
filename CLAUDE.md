@@ -190,7 +190,8 @@ one line and stop (after steps 5 and 6, if they apply).
    - tickers, levels (call wall, put wall, flip, key strikes), direction and timeframe
    - his reasoning, and what any chart image shows
    Never post, like, reply or follow anything on X. Read only. Close the tabs you opened once the notes are
-   saved, so a session that runs for days doesn't pile them up.
+   saved, so a session that runs for days doesn't pile them up, but leave one open: closing a window's last tab
+   closes the window, and Chrome must stay open for the next cycle.
 3. **Update `private/notes/insights.md`** (read `private/notes/heatseeker-guide.md` first if his maps are
    unfamiliar; if it doesn't exist yet, write it from his pinned "Heatseeker for beginners" thread) when a
    post teaches something durable: how he reads gamma, which setups he favors, how his levels have played
