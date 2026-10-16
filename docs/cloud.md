@@ -169,6 +169,12 @@ claude                                     # then: /login, /chrome → Enabled b
   loaded: run `source ~/.bashrc` once there (new terminals and tmux windows pick it up on their own).
 - **Then the steps only you can do:** `/mcp` → robinhood-trading → Authenticate (it opens in the desktop's
   Chrome), and confirm `/chrome` shows the extension connected.
+- **Pin the session to the server's Chrome.** Claude in Chrome connects through your Claude account, so every
+  Claude Code session you run sees every Chrome where the extension is signed in. If you also sign it in on your
+  own computer, a session that hasn't picked one stops and asks which to use, and an unattended cycle can't
+  answer. Tell the server's session "select the Linux browser for Claude in Chrome" after each start; once picked,
+  it keeps using that one. Browser tasks from Claude Code on your own computer can likewise land in the server's
+  Chrome: have them select your own browser, and keep them clear of the cycle times.
 - **Start the day:** `/trading-day`. From then on the session schedules its own cycles each day, as on any
   machine. Use the [session-start command](running.md#using-more-than-one-machine) whenever you restart it.
 
@@ -183,7 +189,7 @@ that session so both don't run exit checks.
 | Watch Chrome or re-log in to X or Robinhood | the remote desktop, through the tunnel |
 | Leave the remote desktop | close its window; **don't log out**, which closes Chrome and cuts off X and Claude in Chrome |
 | Update | it updates itself each cycle; when it asks for a restart, exit `claude` and run the session-start command in the same tmux window |
-| After a reboot (yours or Oracle maintenance) | remote desktop → open Chrome (unlock the keyring) → terminal → `tmux new -s trader` → `cd rh-gex-trader` → session-start command → `/trading-day`. Resting stops protect positions meanwhile. |
+| After a reboot (yours or Oracle maintenance) | remote desktop → open Chrome (unlock the keyring) → terminal → `tmux new -s trader` → `cd rh-gex-trader` → session-start command → pin the Linux browser → `/trading-day`. Resting stops protect positions meanwhile. |
 | Track results | your private repo on GitHub, synced every cycle |
 
 ## Extra: what I did with the spare capacity
@@ -223,6 +229,7 @@ nameservers at your registrar) and a static page.
 | A1 says out of capacity | retry later or in another availability domain; Pay As You Go accounts get capacity more easily |
 | Remote desktop shows a black screen | `~/.xsession` must contain `xfce4-session`; log out of other desktop sessions for that user |
 | `/chrome` says the extension isn't detected | Chrome must be running in the remote desktop, as the same user as `claude`; restart Chrome once after the first `/chrome` |
+| A cycle skipped reading posts, asking which browser to use | the extension is signed in on another Chrome too; pin the session to the Linux browser (step 4) |
 | Cycles run at the wrong times | `timedatectl` should show the zone `private/CLAUDE.md` names; change one to match the other |
 | The website times out but `curl localhost` works on the server | check both the Oracle security list and the `iptables` rules |
 | Cloudflare shows "too many redirects" | SSL/TLS mode isn't Full (strict) |
