@@ -115,6 +115,8 @@ sudo -E apt install -y /tmp/chrome.deb
 echo xfce4-session > ~/.xsession
 sudo adduser xrdp ssl-cert && sudo systemctl enable --now xrdp
 sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target   # never suspend
+sudo fallocate -l 4G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab   # swap, so a memory spike slows Chrome instead of killing it
 sudo passwd ubuntu                                  # the remote-desktop login; make it strong
 sudo reboot
 ```
