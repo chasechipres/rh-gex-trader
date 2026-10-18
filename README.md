@@ -46,9 +46,11 @@ refused. That split is what makes it safe to run unattended: judgment can be wro
 
 The source is an input, not an order: most ideas are skipped, and every decision is journaled with the post
 behind it. Trades are swing trades of days to two weeks, each sized so a full loss costs 5% of the account,
-using options when they fit, else 2x funds or shares ([why](docs/strategy.md)). Three cycles a day (about
-10:15am, 12:30pm and 3:00pm ET) read new posts and trade; between them, an exit check watches stops, targets
-and triggers. The full rules are in [CLAUDE.md](CLAUDE.md).
+using options when they fit, else 2x funds or shares ([why](docs/strategy.md)). His dip levels are bought only
+on a confirmed reclaim, sold the same day ([why](docs/strategy.md#his-dip-levels-buy-the-reclaim)). Three cycles
+a day (about 10:15am, 12:30pm and 3:00pm ET) read new posts and trade; between them, a watcher wakes Claude when a
+stop, target or trigger is crossed, and exit checks run on a heartbeat set by what's held
+([how](docs/strategy.md#watching-between-cycles)). The full rules are in [CLAUDE.md](CLAUDE.md).
 
 ## Docs
 
