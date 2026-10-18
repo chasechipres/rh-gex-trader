@@ -108,6 +108,8 @@ one line and stop (after steps 5 and 6, if they apply).
      never hold an option into its final day.
    - **EARNINGS_SOON:** earnings within 3 trading days. Close it, or cut it to half, before the report,
      unless the report was the point of the trade (say so in the plan's thesis).
+   - **`[reclaim trial]` positions:** sell by 15:45 ET on the day of entry (marketable limit, after
+     cancelling the resting stop), whatever the P/L.
    - **TIME_STOP:** shares held 10 trading days without reaching 1R (the stop never moved to breakeven).
      The setup had its chance; exit at the next check, whatever the P/L.
    - **NO_PRICE:** get a Robinhood quote and re-run.
@@ -168,6 +170,7 @@ one line and stop (after steps 5 and 6, if they apply).
      positions without a working resting stop and unfilled opening orders, the exit check is their only stop;
      for watches, a shorter wait means a trigger is caught before most of the move is gone.
    - **3600 (60 min):** no positions, no open orders, no open plans, no open watches.
+   With a `[reclaim trial]` position open, make sure one check lands between 15:45 and 15:50 ET.
    Never let the wakeup land later than about 16:05 ET; shorten the delay so one check runs just after the
    close and ends the loop (step 5). Set `noop: true` when the check changed nothing.
    **Early-close days** (the market closes at 13:00 ET, e.g. the day after Thanksgiving and Christmas Eve):
@@ -278,6 +281,20 @@ one line and stop (after steps 5 and 6, if they apply).
      still holds the level, a `watch` with its trigger `--below` the level catches the break. Start the journal
      thesis with `[breakdown trial]` so the weekly review can score these separately: keep, change or drop
      the rule after 10 of them or by 2026-10-30, whichever comes first.
+   - **reclaims of his dip levels (trial from 2026-10-19, reviewed by 2026-10-30):** when he names a level to
+     buy a dip at (a long-gamma floor, a king, "optimal entry") and the trend is against it, don't buy the level
+     itself. Buy only a confirmed reclaim, which is what "a reversal confirmed by price and volume" means for
+     these setups. All of these must hold:
+     - price traded at or below his level after the post
+     - it never traded below his invalidation (the price he says proves it wrong); if he gave none, skip it
+     - a 15-minute bar then closed back above the level on volume above its 20-bar average
+       (`get_equity_historicals` with 15-minute bars), by 15:30 ET
+     The stop is his invalidation, not the swept low (wicks stop out a tighter one); the target is his next
+     level up; reward:risk at least 1.5 from the entry price, with normal 5% sizing. **Sell by 15:45 ET the same
+     day** if neither the stop nor the target hit: held overnight, these gap through their stops. Before the
+     reclaim, a `watch` with its trigger `--above` the level and `--stop` his invalidation catches it; when it
+     triggers, check the 15-minute close and volume before entering. Start the journal thesis with
+     `[reclaim trial]`; keep, change or drop the rule after 10 of them or by 2026-10-30.
    - **no revenge trades:** after a stop-out, no re-entry in that name for 2 trading days unless he posts a
      new setup with new levels.
 7. **Journal every decision**, traded or skipped, with `rhgex journal`, citing the post that prompted it
