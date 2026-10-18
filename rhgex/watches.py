@@ -5,6 +5,11 @@ reports the ones that fired, so a trigger between the three daily cycles isn't m
 on the underlying (`above` or `below`) and lapses after `until` (default: 2 trading days, the fresh-post window).
 With a stop and a target, a watch is refused unless the trade clears the minimum reward:risk from the trigger
 price, so a trigger that fires is already worth researching.
+
+A reclaim watch (`--reclaim`) is for buying back above one of his dip levels: `rhgex monitor` fires it only on a
+completed 15-minute close above the level on above-average volume after price touched it, and drops it if price
+trades through the stop first. `watch check` (Robinhood prices, no bars) still reports it TRIGGERED on price, with
+`confirm: reclaim`, so the exit check knows to look at the 15-minute bars before entering.
 """
 
 import json
@@ -39,11 +44,14 @@ def add_trading_days(day: date, n: int) -> date:
 
 def add(symbol: str, side: str, level: float, note: str, until: str | None = None, source: str = "",
         today: date | None = None, path: Path = WATCHES, stop: float | None = None,
-        target: float | None = None) -> dict:
+        target: float | None = None, reclaim: bool = False) -> dict:
     """side: 'above' fires when price >= level, 'below' when price <= level. One open watch per symbol.
-    stop/target (on the underlying, both or neither): the trade must clear exits.MIN_REWARD_RISK from the trigger."""
+    stop/target (on the underlying, both or neither): the trade must clear exits.MIN_REWARD_RISK from the trigger.
+    reclaim: his level is `level`, the stop is his invalidation; needs side 'above' and a stop."""
     if side not in ("above", "below"):
         raise ValueError("side must be above or below")
+    if reclaim and (side != "above" or stop is None):
+        raise ValueError("a reclaim watch needs --above his level and --stop his invalidation")
     rr = None
     if (stop is None) != (target is None):
         raise ValueError("pass both --stop and --target, or neither")
@@ -66,6 +74,8 @@ def add(symbol: str, side: str, level: float, note: str, until: str | None = Non
          "status": "open", "opened": datetime.now().isoformat(timespec="seconds")}
     if rr is not None:
         w.update(stop=stop, target=target, reward_risk=rr)
+    if reclaim:
+        w["confirm"] = "reclaim"
     watches.append(w)
     save(watches, path)
     return w
@@ -102,7 +112,8 @@ def check(prices: dict[str, float], today: date | None = None, path: Path = WATC
         if state == "EXPIRED":
             w.update(status="expired", closed=datetime.now().isoformat(timespec="seconds"))
         report.append({"symbol": w["symbol"], "trigger": f"{w['side']} {w['level']:g}", "price": px,
-                       "until": w["until"], "state": state, "note": w["note"]})
+                       "until": w["until"], "state": state, "note": w["note"]}
+                      | ({"confirm": "reclaim", "stop": w["stop"]} if w.get("confirm") == "reclaim" else {}))
     if any(r["state"] == "EXPIRED" for r in report):
         save(watches, path)
     return report
