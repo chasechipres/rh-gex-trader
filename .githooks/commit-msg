@@ -1,0 +1,3 @@
+#!/bin/sh
+# Refuse commit messages with Claude attribution (Co-Authored-By, session links, "Generated with").
+exec sh "$(dirname "$0")/no-attribution" "$1"

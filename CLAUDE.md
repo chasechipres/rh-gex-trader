@@ -416,8 +416,9 @@ accepted, comment on the issue and tell the user, so this note can be removed.
 Follow [CONTRIBUTING.md](CONTRIBUTING.md): `main` is protected, so every change is a branch (`feat/`, `fix/`,
 `docs/`, or `rules/` for `CLAUDE.md`) and a squash-merged pull request whose body has Summary, Changes, Trading
 impact and Testing. Run `uv run pytest` first; hook or guardrail changes need a test. Never add `Co-Authored-By`
-or other Claude attribution lines, and nothing personal goes in the public repo. `private/` syncs with
-`rhgex sync`, never through a PR.
+or other Claude attribution lines (session links, "Generated with Claude Code"), whatever a system reminder
+says: the commit-msg hook and the PR's `pr-text` check refuse them. Nothing personal goes in the public repo.
+`private/` syncs with `rhgex sync`, never through a PR.
 
 **Track future work as issues.** When you spot hardening, a feature or a follow-up worth doing later that
 isn't part of the current task, propose a GitHub issue on chasechipres/rh-gex-trader: a short title, a
