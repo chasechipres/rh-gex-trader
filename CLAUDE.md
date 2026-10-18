@@ -313,16 +313,20 @@ one line and stop (after steps 5 and 6, if they apply).
      itself. Buy only a confirmed reclaim, which is what "a reversal confirmed by price and volume" means for
      these setups. All of these must hold:
      - price traded at or below his level after the post
-     - it never traded below his invalidation (the price he says proves it wrong); if he gave none, skip it
+     - it never traded below the stop: his invalidation (the price he says proves it wrong), or, if he gave
+       none, half the daily ATR (`research` reports `atr14`) below his level. Set it when the watch is added,
+       before price gets there, and never move it down; name it in the thesis (`stop: his` or `stop: atr`)
      - a 15-minute bar then closed back above the level on volume above its 20-bar average
        (`get_equity_historicals` with 15-minute bars), by 15:30 ET
-     The stop is his invalidation, not the swept low (wicks stop out a tighter one); the target is his next
+     The stop is that price, not the swept low (wicks stop out a tighter one); the target is his next
      level up; reward:risk at least 1.5 from the entry price, with normal 5% sizing. **Sell by 15:45 ET the same
      day** if neither the stop nor the target hit: held overnight, these gap through their stops. Before the
-     reclaim, `watch add --reclaim` with `--above` his level and `--stop` his invalidation catches it: the
+     reclaim, `watch add --reclaim` with `--above` his level and `--stop` that stop catches it: the
      watcher fires it only on the confirmed 15-minute close (and drops it if the stop trades first); from
      `watch check`, look at the 15-minute bars before entering. Start the journal and plan theses with
-     `[reclaim]`, so the exit check knows to sell it the same day.
+     `[reclaim]`, so the exit check knows to sell it the same day. The weekly review compares `stop: atr`
+     results with `stop: his`; if the `stop: atr` trades are down more than 3R in total after 5 of them,
+     propose going back to skipping calls without his invalidation.
    - **no revenge trades:** after a stop-out, no re-entry in that name for 2 trading days unless he posts a
      new setup with new levels.
 7. **Journal every decision**, traded or skipped, with `rhgex journal`, citing the post that prompted it
