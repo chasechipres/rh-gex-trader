@@ -1,0 +1,21 @@
+name: pr-text
+
+# A squash merge uses the PR's title and description as the commit on main, so they get the same check as
+# commit messages (.githooks/commit-msg): no Claude attribution lines or session links.
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  no-attribution:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the title and description
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+          BODY: ${{ github.event.pull_request.body }}
+        run: printf '%s\n%s\n' "$TITLE" "$BODY" > "$RUNNER_TEMP/pr.txt" && sh .githooks/no-attribution "$RUNNER_TEMP/pr.txt"

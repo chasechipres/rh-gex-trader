@@ -1,0 +1,8 @@
+#!/bin/sh
+# Refuse Claude attribution in a commit message or PR text (CONTRIBUTING.md: no Co-Authored-By or other
+# Claude attribution lines). Usage: no-attribution FILE. Used by commit-msg and the pr-text workflow.
+pattern='co-authored-by:.*(claude|anthropic)|noreply@anthropic\.com|claude-session:|claude\.ai/code/session|generated with \[?claude code'
+if grep -v '^#' "$1" | grep -Ein "$pattern"; then
+  echo "Claude attribution found (lines above); remove it. CONTRIBUTING.md: no Co-Authored-By or session links."
+  exit 1
+fi
