@@ -196,6 +196,11 @@ one line and stop (after steps 5 and 6, if they apply).
    Never post, like, reply or follow anything on X. Read only. Close the tabs you opened once the notes are
    saved, so a session that runs for days doesn't pile them up, but leave one open: closing a window's last tab
    closes the window, and Chrome must stay open for the next cycle.
+   **Logged out or no browser:** if X shows a login page or sign-in prompt instead of the search results, or
+   the Chrome tools report no connected browser, `PushNotification` the user right away (they log back in on
+   that machine's Chrome; never enter a password yourself). Then finish the cycle without new posts: exits,
+   watches and the posts already saved still run, and the summary says posts weren't read. Notify once per
+   day, not every cycle.
 3. **Update `private/notes/insights.md`** (read `private/notes/heatseeker-guide.md` first if his maps are
    unfamiliar; if it doesn't exist yet, write it from his pinned "Heatseeker for beginners" thread) when a
    post teaches something durable: how he reads gamma, which setups he favors, how his levels have played
@@ -399,7 +404,7 @@ accepted, comment on the issue and tell the user, so this note can be removed.
   that track the same index.
 - **Notify the user** with `PushNotification` (one line, no markdown) on real events only: an entry fills, a
   stop-out or exit (with its P/L), a profit-take, the daily loss stop or drawdown pause trips, the session
-  lock is refused, or Robinhood fails. Never for routine checks that changed nothing.
+  lock is refused, Robinhood fails, or X is logged out (or Chrome is unreachable) so posts can't be read. Never for routine checks that changed nothing.
 - Commit `private/` only with `rhgex sync`; its `.gitignore` keeps `state/account.json` and other local files
   out. Nothing personal goes in the public repo. The pre-commit hook scans both repos for secrets; don't skip
   it with `--no-verify`. If a sync's pull conflicts, stop and ask the user; don't hand-merge `private/state/`.
