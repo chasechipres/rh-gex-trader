@@ -86,7 +86,15 @@ Why this version, from a replay of one week of his dip calls on 15-minute bars:
 | Same reclaim, held for days | Worse: overnight gaps went through the stops |
 
 One week is thin evidence, so the journal tags these `[reclaim]` and the weekly review scores them against the
-other versions. Calls without an invalidation from him are skipped: there's no honest stop.
+other versions.
+
+About half his dip calls name no invalidation. For those the stop is **half the stock's daily ATR below his
+level**, the same distance the playbook already uses for watch stops. In the replay, that added the calls where
+he said a level "must hold" but named nothing below it; a stop at his next level down added almost nothing, and a
+full ATR was too wide to pass 1.5 reward:risk (a wider stop can't sneak a trade in, it fails the check). The stop
+is set when the watch is added, before price gets there, so it can't be fitted to what price did. Each thesis says
+`stop: his` or `stop: atr`, and the weekly review keeps them apart; if the ATR stops lose more than 3R in total
+over their first 5 trades, the review proposes dropping them.
 
 ## Watching between cycles
 
