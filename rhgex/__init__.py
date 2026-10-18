@@ -7,6 +7,7 @@
   blocks    show active wash-sale blocks, logged wash-sale windows and limits
   wash      log a loss exit and its 30-day wash-sale window (logging only), or list them
   watch     price triggers for journaled watches, checked every exit check
+  monitor   the watcher: polls quotes between exit checks and exits when a level is crossed
   calls     the source's calls, scored: hit rate by setup type
   journal   log a trade thesis or decision to private/logs/journal.jsonl
   record    track record: live realized P/L and win rate by confidence (--readme updates private/README.md)
@@ -233,6 +234,12 @@ def cmd_plan(args) -> None:
         sys.exit(f"refused: {e}")
 
 
+def cmd_monitor(args) -> None:
+    from . import monitor
+
+    monitor.run(args.minutes, args.interval, args.close, emit=lambda line: print(line, flush=True))
+
+
 def cmd_exits(args) -> None:
     from . import exits
 
@@ -247,7 +254,7 @@ def cmd_watch(args) -> None:
         if args.action == "add":
             side, level = ("above", args.above) if args.above is not None else ("below", args.below)
             out(watches.add(args.symbol, side, level, args.note, args.until, args.source,
-                            stop=args.stop, target=args.target))
+                            stop=args.stop, target=args.target, reclaim=args.reclaim))
         elif args.action == "close":
             out(watches.close(args.symbol, args.reason))
         elif args.action == "check":
@@ -447,10 +454,17 @@ def main() -> None:
     wt.add_argument("--until", help="last live day YYYY-MM-DD (default: 2 trading days)")
     wt.add_argument("--stop", type=float, help="add: the trade's stop on the underlying")
     wt.add_argument("--target", type=float, help="add: the trade's target; reward:risk from the trigger must be >= 1.5")
+    wt.add_argument("--reclaim", action="store_true",
+                    help="add: fire on a 15-minute close back above his level (--above) on volume; --stop is his invalidation")
     wt.add_argument("--note", default="", help="what to do when it fires")
     wt.add_argument("--source", default="", help="the post behind the watch")
     wt.add_argument("--price", action="append", default=[], help="check: SYMBOL=PX from Robinhood quotes")
     wt.add_argument("--reason", default="", help="close: why")
+
+    mn = sub.add_parser("monitor", help="the watcher: poll quotes, exit with one JSON line per event or at the heartbeat")
+    mn.add_argument("--minutes", type=float, default=30, help="heartbeat: exit after this long with no event")
+    mn.add_argument("--interval", type=float, default=60, help="seconds between polls")
+    mn.add_argument("--close", default="16:00", help="ET close, HH:MM (13:00 on early-close days)")
 
     w = sub.add_parser("wash", help="log a loss exit's 30-day wash-sale window (logging only), or list them")
     w.add_argument("action", choices=["add", "list"])
@@ -532,5 +546,5 @@ def main() -> None:
         p.error("wash add needs a symbol and --loss")
     {"research": cmd_research, "gex": cmd_gex, "check": cmd_check, "blocks": cmd_blocks,
      "fit": cmd_fit, "plan": cmd_plan, "exits": cmd_exits, "wash": cmd_wash, "watch": cmd_watch, "journal": cmd_journal,
-     "record": cmd_record, "calls": cmd_calls, "size": cmd_size, "lev": cmd_lev,
+     "monitor": cmd_monitor, "record": cmd_record, "calls": cmd_calls, "size": cmd_size, "lev": cmd_lev,
      "lock": cmd_lock, "peak": cmd_peak, "preflight": cmd_preflight, "init": cmd_init, "sync": cmd_sync}[args.cmd](args)

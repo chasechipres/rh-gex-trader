@@ -58,9 +58,10 @@ uv run python -m rhgex plan add TICKER --asset stock|option --direction bullish|
 uv run python -m rhgex plan raise-stop TICKER --stop PX          # tighten the underlying stop (never loosens)
 uv run python -m rhgex plan close TICKER --reason "..."          # after the position is fully closed
 uv run python -m rhgex plan list
-uv run python -m rhgex watch add TICKER --above|--below PX --stop PX --target PX --note "..." --source URL [--until YYYY-MM-DD]  # refuses R:R < 1.5 from the trigger
+uv run python -m rhgex watch add TICKER --above|--below PX --stop PX --target PX --note "..." --source URL [--until YYYY-MM-DD] [--reclaim]  # refuses R:R < 1.5 from the trigger
 uv run python -m rhgex watch check --price TICKER=PX ...         # open triggers vs price: TRIGGERED/WAITING/EXPIRED
 uv run python -m rhgex watch close TICKER --reason "..."         # entered, skipped or the setup died
+uv run python -m rhgex monitor --minutes 60 [--close 13:00]      # the watcher: polls quotes, exits on a level cross or the heartbeat
 uv run python -m rhgex exits [--price TICKER=PX ...]             # open plans vs price: STOP_HIT/TARGET_HIT/AT_1R/EXPIRING/EARNINGS_SOON/TIME_STOP
 ```
 
@@ -93,7 +94,9 @@ one line and stop (after steps 5 and 6, if they apply).
    **Watches:** also quote every symbol in `watch list` and run `watch check --price SYM=PX ...`. A
    `TRIGGERED` watch is a candidate now: before 15:50 ET (and with the session lock), run full-cycle steps
    5-8 for that symbol alone (research, decide, journal, enter), then `watch close` it either way. This is the
-   only part of an exit check that may run research. `EXPIRED` watches close themselves.
+   only part of an exit check that may run research. A reclaim watch (`confirm: reclaim`) is a candidate only
+   once its 15-minute bars confirm it (full-cycle step 6, reclaims); until then it keeps waiting. `EXPIRED`
+   watches close themselves.
 2. Run `exits --price SYM=PX ...` with those quotes. When several signals or rules apply to one position,
    act in this order, and when two conflict take the more protective one: **stop hit > EXPIRING or
    EARNINGS_SOON > TIME_STOP > fading thesis > target or +100% (sell half) > trailing**. For each plan:
@@ -164,13 +167,32 @@ one line and stop (after steps 5 and 6, if they apply).
 5. If this exit check is running from a `/loop` and it's after 16:00 ET (or a market holiday), finish the
    checks above, then release the session lock (`lock release`, then `rhgex sync`), end the loop (`ScheduleWakeup` with `stop: true`; for an older fixed-interval loop,
    `CronList` then `CronDelete`), and make sure the next morning's cycle is scheduled (full-cycle step 10).
-6. **Pace the next check** (self-paced loop only, before 16:00 ET): call `ScheduleWakeup` with the prompt
-   `run an exit check per CLAUDE.md`, and `delaySeconds` set by what's held now:
-   - **900 (15 min):** anything open: positions, orders, plans or watches. For spreads, fractional shares,
-     positions without a working resting stop and unfilled opening orders, the exit check is their only stop;
-     for watches, a shorter wait means a trigger is caught before most of the move is gone.
-   - **3600 (60 min):** no positions, no open orders, no open plans, no open watches.
-   With a `[reclaim]` position open, make sure one check lands between 15:45 and 15:50 ET.
+6. **Pace the next check** (self-paced loop only, before 16:00 ET). Two things wake the next check: the
+   watcher, when a level is crossed, and a heartbeat, for what code can't see (order states, option marks,
+   the account value, date rules, a fading thesis).
+   - **Heartbeat,** by what's held now:
+     - **15 min:** any option or spread, fractional shares, a position without a working resting stop, or an
+       unfilled opening order: the exit check is their only stop, or it needs Robinhood data.
+     - **30 min:** only shares or leveraged funds, each with a working resting stop (the broker's stop protects
+       them; the watcher catches stop, target and 1R crosses in between).
+     - **60 min:** only watches, or nothing open.
+   - **Watcher:** when any watch or plan is open, start `uv run python -m rhgex monitor --minutes <heartbeat>`
+     (`--close 13:00` on early-close days) with Bash `run_in_background`, and also call `ScheduleWakeup` with
+     the prompt `run an exit check per CLAUDE.md` and `delaySeconds` of the heartbeat plus 5 minutes, as a
+     fallback in case the watcher dies. Run one watcher at a time: if the last one is still running, stop it
+     (`TaskStop`) before starting another. Its exit wakes the session; treat that as an exit check, and read
+     its last lines:
+     - **an event** (`WATCH_TRIGGERED`, `RECLAIM_CONFIRMED`, `RECLAIM_INVALIDATED`, `STOP_HIT`, `TARGET_HIT`,
+       `AT_1R`, `SAME_DAY_EXIT`): run the exit check now, confirming the price on Robinhood before acting
+       (Yahoo can lag). `RECLAIM_INVALIDATED` closes that watch (`watch close`).
+     - **`HEARTBEAT`:** the routine check.
+     - **`FEED_DOWN`:** quotes stopped. Run the check and pace this one with `ScheduleWakeup` at 900 and no
+       watcher; try the watcher again at the next check.
+     - **`IDLE`:** nothing to watch; pace with `ScheduleWakeup` at the heartbeat. **`CLOSED`:** step 5.
+     Each event fires once per level and day, so a target you've handled won't wake you again.
+   - **Nothing open:** no watcher; `ScheduleWakeup` at 3600.
+   With a `[reclaim]` position open, make sure one check lands between 15:45 and 15:50 ET (the watcher's
+   `SAME_DAY_EXIT` does it; without the watcher, shorten the delay).
    Never let the wakeup land later than about 16:05 ET; shorten the delay so one check runs just after the
    close and ends the loop (step 5). Set `noop: true` when the check changed nothing.
    **Early-close days** (the market closes at 13:00 ET, e.g. the day after Thanksgiving and Christmas Eve):
@@ -292,8 +314,9 @@ one line and stop (after steps 5 and 6, if they apply).
      The stop is his invalidation, not the swept low (wicks stop out a tighter one); the target is his next
      level up; reward:risk at least 1.5 from the entry price, with normal 5% sizing. **Sell by 15:45 ET the same
      day** if neither the stop nor the target hit: held overnight, these gap through their stops. Before the
-     reclaim, a `watch` with its trigger `--above` the level and `--stop` his invalidation catches it; when it
-     triggers, check the 15-minute close and volume before entering. Start the journal and plan theses with
+     reclaim, `watch add --reclaim` with `--above` his level and `--stop` his invalidation catches it: the
+     watcher fires it only on the confirmed 15-minute close (and drops it if the stop trades first); from
+     `watch check`, look at the 15-minute bars before entering. Start the journal and plan theses with
      `[reclaim]`, so the exit check knows to sell it the same day.
    - **no revenge trades:** after a stop-out, no re-entry in that name for 2 trading days unless he posts a
      new setup with new levels.
