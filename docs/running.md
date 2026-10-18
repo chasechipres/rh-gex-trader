@@ -117,6 +117,7 @@ time with `uv run python -m rhgex record --readme --account-value 1000`, or ask 
 | Every order is denied: "private/guardrails.toml is missing" | Set up your private folder: `/setup` (or `uv run python -m rhgex init`). |
 | `rhgex sync` says "pull failed" | Two machines changed the same private file. Resolve it in `private/` by hand (ask Claude to explain the conflict, not to merge `state/`). |
 | Every Robinhood call says "guardrail hook failed to run" | The venv is missing: run `uv sync` in the repo folder. |
+| Notification: X is logged out, or Chrome is unreachable | Log back in to X in that machine's Chrome (or reopen Chrome). Until then cycles read no new posts and trade nothing new from them; exits and watches keep running. |
 | `uv: command not found` (Windows) | Restart the terminal after installing, then restart `claude`. |
 | Claude says the rules changed and asks for a restart | Exit `claude`, run the session-start command, start it again. Open positions stay protected meanwhile. |
 | `robinhood-trading` isn't in `/mcp` | Start `claude` from inside the repo folder; the server is defined in `.mcp.json`. |
