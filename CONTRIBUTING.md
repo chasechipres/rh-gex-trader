@@ -47,6 +47,7 @@ rh-gex-trader/              shared (this repo)
 │   ├── lock.py             one machine at a time
 │   ├── record.py           track record
 │   ├── calls.py            the source's calls, scored
+│   ├── replay.py           his dip calls replayed on 15-minute bars
 │   ├── washlog.py          wash-sale log (logging only)
 │   ├── market.py           technicals + fundamentals (Yahoo Finance)
 │   ├── indicators.py       EMA, RSI, ATR

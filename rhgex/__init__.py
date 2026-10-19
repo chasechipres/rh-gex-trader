@@ -9,6 +9,7 @@
   watch     price triggers for journaled watches, checked every exit check
   monitor   the watcher: polls quotes between exit checks and exits when a level is crossed
   calls     the source's calls, scored: hit rate by setup type
+  replay    the source's dip calls on 15-minute bars: dip-buy vs reclaim vs reclaim held
   journal   log a trade thesis or decision to private/logs/journal.jsonl
   record    track record: live realized P/L and win rate by confidence (--readme updates private/README.md)
   preflight pre-trade checklist: every mechanical entry rule, before plan add
@@ -237,7 +238,11 @@ def cmd_plan(args) -> None:
 def cmd_monitor(args) -> None:
     from . import monitor
 
-    monitor.run(args.minutes, args.interval, args.close, emit=lambda line: print(line, flush=True))
+    if args.stats:
+        out(monitor.stats(since=args.since))
+        return
+    monitor.run(args.minutes, args.interval, args.close, emit=lambda line: print(line, flush=True),
+                log_path=monitor.LOG)
 
 
 def cmd_exits(args) -> None:
@@ -320,10 +325,14 @@ def cmd_calls(args) -> None:
     if args.action == "add":
         try:
             check_source("trade", args.source)
+            atr = None
+            if args.invalid is None:  # he named none: half an ATR past his level
+                from .market import technicals
+                atr = technicals(args.symbol)["atr14"]
             out(calls.add(args.symbol, args.direction, args.setup, args.level, args.target, args.invalid,
                           args.source, args.by, args.posted, args.note,
                           trigger=("above", args.above) if args.above is not None
-                          else ("below", args.below) if args.below is not None else None))
+                          else ("below", args.below) if args.below is not None else None, atr=atr))
         except ValueError as e:
             sys.exit(f"refused: {e}")
     elif args.action == "check":
@@ -332,6 +341,15 @@ def cmd_calls(args) -> None:
         out(calls.stats(calls.load()))
     else:
         out([c for c in calls.load() if c["result"] == "open"])
+
+
+def cmd_replay(args) -> None:
+    from . import guardrails, paths, replay
+
+    pct = 75
+    if paths.GUARDRAILS.exists():
+        pct = guardrails.load(paths.GUARDRAILS)["limits"].get("max_order_pct", pct)
+    out(replay.run(args.account, args.since, args.until, tuple(args.setup or ["downtrend-dip"]), pct))
 
 
 def cmd_record(args) -> None:
@@ -465,6 +483,8 @@ def main() -> None:
     mn.add_argument("--minutes", type=float, default=30, help="heartbeat: exit after this long with no event")
     mn.add_argument("--interval", type=float, default=60, help="seconds between polls")
     mn.add_argument("--close", default="16:00", help="ET close, HH:MM (13:00 on early-close days)")
+    mn.add_argument("--stats", action="store_true", help="per-day runs, events and wake-ups vs a 15-minute loop")
+    mn.add_argument("--since", help="--stats: first day YYYY-MM-DD")
 
     w = sub.add_parser("wash", help="log a loss exit's 30-day wash-sale window (logging only), or list them")
     w.add_argument("action", choices=["add", "list"])
@@ -494,7 +514,8 @@ def main() -> None:
     cl.add_argument("--setup", choices=["uptrend-dip", "downtrend-dip", "breakdown", "breakout", "range", "other"])
     cl.add_argument("--level", type=float, help="the level the call is made from (pivot, entry, king)")
     cl.add_argument("--target", type=float, help="his target")
-    cl.add_argument("--invalid", type=float, help="the price that proves the call wrong")
+    cl.add_argument("--invalid", type=float,
+                    help="the price he says proves the call wrong; leave it out when he names none (half an ATR past the level)")
     cl.add_argument("--by", help="deadline YYYY-MM-DD (default: 5 trading days after the post)")
     cl.add_argument("--posted", help="'YYYY-MM-DD HH:MM' local time, as in the post note's name (default now); "
                     "a date alone only for a post made before the open")
@@ -503,6 +524,13 @@ def main() -> None:
     trg = cl.add_mutually_exclusive_group()
     trg.add_argument("--above", type=float, help="conditional call: scored only once price trades above this")
     trg.add_argument("--below", type=float, help="conditional call: scored only once price trades below this")
+
+    rp = sub.add_parser("replay", help="the source's dip calls on 15-minute bars: dip-buy vs reclaim vs reclaim held")
+    rp.add_argument("--account", type=float, required=True, help="account value for sizing (get_portfolio)")
+    rp.add_argument("--since", help="first post date YYYY-MM-DD (default: every logged call)")
+    rp.add_argument("--until", help="last post date YYYY-MM-DD")
+    rp.add_argument("--setup", action="append", choices=["downtrend-dip", "uptrend-dip"],
+                    help="call setups to replay (default downtrend-dip; repeat for both)")
 
     rec = sub.add_parser("record", help="track record: live realized P/L")
     rec.add_argument("--readme", action="store_true", help="rewrite the track-record block in private/README.md")
@@ -540,11 +568,11 @@ def main() -> None:
     if args.cmd == "watch" and args.action == "add" and (args.stop is None or args.target is None):
         p.error("watch add needs --stop and --target, so reward:risk is checked from the trigger")
     if args.cmd == "calls" and args.action == "add" and (
-            not args.symbol or None in (args.direction, args.setup, args.level, args.target, args.invalid)):
-        p.error("calls add needs a symbol, --direction, --setup, --level, --target and --invalid")
+            not args.symbol or None in (args.direction, args.setup, args.level, args.target)):
+        p.error("calls add needs a symbol, --direction, --setup, --level and --target (and --invalid if he gave one)")
     if args.cmd == "wash" and args.action == "add" and (not args.symbol or args.loss is None):
         p.error("wash add needs a symbol and --loss")
     {"research": cmd_research, "gex": cmd_gex, "check": cmd_check, "blocks": cmd_blocks,
      "fit": cmd_fit, "plan": cmd_plan, "exits": cmd_exits, "wash": cmd_wash, "watch": cmd_watch, "journal": cmd_journal,
-     "monitor": cmd_monitor, "record": cmd_record, "calls": cmd_calls, "size": cmd_size, "lev": cmd_lev,
+     "monitor": cmd_monitor, "replay": cmd_replay, "record": cmd_record, "calls": cmd_calls, "size": cmd_size, "lev": cmd_lev,
      "lock": cmd_lock, "peak": cmd_peak, "preflight": cmd_preflight, "init": cmd_init, "sync": cmd_sync}[args.cmd](args)

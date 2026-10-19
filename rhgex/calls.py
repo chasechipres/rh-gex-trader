@@ -7,6 +7,9 @@ A day that touches both the target and the invalidation counts as a fail (no int
 A call posted during the session is scored on its post day only from the post time on (5-minute bars), so a
 move made before he posted can't count for or against him.
 
+When he names no invalidation, the call gets one half the daily ATR past his level (ATR_STOP), the stop the
+reclaim rule uses, and `invalid_from: atr` says so; his own price is `invalid_from: his`.
+
 A conditional call ("above 9.5, 10 is next") has a trigger: it's scored only from the session after price first
 trades through the trigger, and one that never triggers by its deadline is `not_triggered`, outside the hit rate.
 """
@@ -20,6 +23,7 @@ from . import paths
 CALLS = paths.LOGS / "calls.json"
 SETUPS = ("uptrend-dip", "downtrend-dip", "breakdown", "breakout", "range", "other")
 DEFAULT_DAYS = 5  # trading days for a call to play out when he gives no date
+ATR_STOP = 0.5  # daily ATRs past his level, the invalidation when he names none (CLAUDE.md, reclaims)
 
 
 def add_trading_days(day: date, n: int) -> date:
@@ -38,16 +42,21 @@ def save(calls: list[dict], path: Path = CALLS) -> None:
     path.write_text(json.dumps(calls, indent=2))
 
 
-def add(symbol: str, direction: str, setup: str, level: float, target: float, invalid: float, source: str,
+def add(symbol: str, direction: str, setup: str, level: float, target: float, invalid: float | None, source: str,
         by: str | None = None, posted: str | None = None, note: str = "", path: Path = CALLS,
-        trigger: tuple[str, float] | None = None) -> dict:
+        trigger: tuple[str, float] | None = None, atr: float | None = None) -> dict:
     """posted: 'YYYY-MM-DD HH:MM' in this computer's local time (the post note's name), or a date alone for a
-    post made before the open. Default: now."""
+    post made before the open. Default: now. invalid None: he named none, so it's ATR_STOP x atr past the level."""
     if direction not in ("bullish", "bearish"):
         raise ValueError("direction must be bullish or bearish")
     if setup not in SETUPS:
         raise ValueError(f"setup must be one of {', '.join(SETUPS)}")
     bull = direction == "bullish"
+    invalid_from = "his"
+    if invalid is None:
+        if not atr or atr <= 0:
+            raise ValueError("no --invalid: the ATR stop needs the stock's daily ATR")
+        invalid, invalid_from = round(level - ATR_STOP * atr if bull else level + ATR_STOP * atr, 2), "atr"
     if (bull and not invalid < target) or (not bull and not invalid > target):
         raise ValueError(f"a {direction} call needs the invalidation {'below' if bull else 'above'} the target")
     if trigger:
@@ -65,7 +74,7 @@ def add(symbol: str, direction: str, setup: str, level: float, target: float, in
     if any(c["source"] == source and c["symbol"] == symbol.upper() for c in calls):
         raise ValueError(f"{symbol.upper()} from this post is already logged")
     c = {"symbol": symbol.upper(), "direction": direction, "setup": setup, "level": level, "target": target,
-         "invalid": invalid, "posted": posted_d.isoformat(), "by": by_d.isoformat(), "source": source,
+         "invalid": invalid, "invalid_from": invalid_from, "posted": posted_d.isoformat(), "by": by_d.isoformat(), "source": source,
          "note": note, "result": "open", "logged": datetime.now().isoformat(timespec="seconds")}
     if posted_at:
         c["posted_at"] = posted_at.isoformat(timespec="minutes")
