@@ -5,6 +5,8 @@ pre:  PreToolUse. Read/preview tools, cancels and watchlist/alert/scan tools pas
       to the user (fail closed): an unknown tool, an unparseable order, or a crashing hook never gets through.
 post: PostToolUse. Records placed orders in private/state/ledger.jsonl, which the daily limits read, and each
       account's value from get_portfolio in private/state/account.json, which the percentage limits read.
+      When get_equity_orders / get_option_orders shows one of today's opening orders cancelled (or rejected)
+      unfilled, it appends a release row, so the daily caps stop counting money that was never spent.
 """
 
 import json
@@ -110,12 +112,62 @@ def normalize(tool: str, d: dict, lookup=instrument) -> dict:
     raise ValueError(f"{name} is not an order tool")
 
 
-def ledger_today() -> list[dict]:
+def _rows_today() -> list[dict]:
     if not LEDGER.exists():
         return []
     today = date.today().isoformat()
     rows = [json.loads(line) for line in LEDGER.read_text().splitlines() if line.strip()]
     return [r for r in rows if r.get("date") == today]
+
+
+def settle(rows: list[dict]) -> list[dict]:
+    """Apply release rows: an opening order the broker finished unfilled drops out; a partial fill counts at
+    its filled fraction of the cost."""
+    filled = {r["order_id"]: r["filled_fraction"] for r in rows if r.get("tool") == "release"}
+    out = []
+    for r in rows:
+        if r.get("tool") == "release":
+            continue
+        f = filled.get(r.get("order_id")) if r.get("order_id") else None
+        if f is None:
+            out.append(r)
+        elif f > 0:
+            out.append({**r, "cost_usd": round(r.get("cost_usd", 0) * f, 2)})
+    return out
+
+
+def ledger_today() -> list[dict]:
+    """Today's orders as the daily caps count them: placed orders, less what the broker says never filled."""
+    return settle(_rows_today())
+
+
+# Final states with nothing (or only part) filled: the unfilled rest never cost anything.
+UNFILLED_FINAL = {"cancelled", "rejected", "failed", "voided", "partially_filled_rest_cancelled"}
+
+
+def releases(resp, rows: list[dict]) -> list[dict]:
+    """Release rows for today's opening orders that an orders listing shows finished unfilled or part-filled.
+    Only the broker's own order states release cap: a cancel request alone doesn't, since a fill can race it."""
+    data = (_payload(resp) or {}).get("data")
+    orders = data.get("orders") if isinstance(data, dict) else None
+    if not isinstance(orders, list):
+        return []
+    opened = {r["order_id"] for r in rows if r.get("opening") and r.get("order_id") and r.get("tool") != "release"}
+    done = {r.get("order_id") for r in rows if r.get("tool") == "release"}
+    out = []
+    for o in orders:
+        if not isinstance(o, dict) or o.get("state") not in UNFILLED_FINAL:
+            continue
+        oid = str(o.get("id") or "")
+        qty = _num(o.get("quantity"))
+        got = _num(o.get("cumulative_quantity", o.get("processed_quantity")))
+        if oid not in opened or oid in done or not qty or got is None:
+            continue
+        out.append({"time": datetime.now().isoformat(timespec="seconds"), "date": date.today().isoformat(),
+                    "tool": "release", "order_id": oid, "state": o["state"], "opening": False, "cost_usd": 0,
+                    "filled_fraction": round(min(got / qty, 1.0), 6)})
+        done.add(oid)
+    return out
 
 
 def _payload(resp):
@@ -209,8 +261,17 @@ def pre(event: dict) -> None:
 
 def post(event: dict) -> None:
     tool, args = event.get("tool_name", ""), event.get("tool_input") or {}
-    if tool.rsplit("__", 1)[-1] == "get_portfolio":
+    name = tool.rsplit("__", 1)[-1]
+    if name == "get_portfolio":
         return record_portfolio(args, event.get("tool_response"))
+    if name in ("get_equity_orders", "get_option_orders"):
+        if not paths.ready(LEDGER):
+            return
+        rows = releases(event.get("tool_response"), _rows_today())
+        if rows:
+            with open(LEDGER, "a") as f:
+                f.writelines(json.dumps(r) + "\n" for r in rows)
+        return
     if classify(tool) != "order" or not paths.ready(LEDGER):
         return  # (no private/ yet: pre refuses every order until `rhgex init`, so there's nothing to count)
     # The ledger is synced through git, so rows carry only what the daily caps need: no account number and

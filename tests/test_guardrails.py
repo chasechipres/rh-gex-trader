@@ -241,6 +241,65 @@ class Ledger(unittest.TestCase):
                           "opening": True, "cost_usd": 20.0})
         self.assertEqual(len(hook.ledger_today()), 1)
 
+    def place(self, oid, qty="39", px="26.72"):
+        import json
+        hook.post({"tool_name": "mcp__robinhood-trading__place_equity_order",
+                   "tool_input": {"symbol": "MUU", "side": "buy", "type": "limit", "quantity": qty,
+                                  "limit_price": px},
+                   "tool_response": json.dumps({"data": {"order": {"id": oid, "state": "unconfirmed"}}})})
+
+    def orders(self, *orders, tool="get_equity_orders"):
+        import json
+        hook.post({"tool_name": f"mcp__robinhood-trading__{tool}", "tool_input": {},
+                   "tool_response": json.dumps({"data": {"orders": list(orders)}})})
+
+    def test_cancelled_unfilled_order_frees_the_cap(self):
+        self.place("ord-1")
+        self.assertEqual(sum(r["cost_usd"] for r in hook.ledger_today()), 1042.08)
+        self.orders({"id": "ord-1", "state": "confirmed", "quantity": "39", "cumulative_quantity": "0"})
+        self.assertEqual(len(hook.ledger_today()), 1)  # still working: still counted
+        cancelled = {"id": "ord-1", "state": "cancelled", "quantity": "39.000000", "cumulative_quantity": "0.000000"}
+        self.orders(cancelled)
+        self.orders(cancelled)  # listing it again doesn't add a second release
+        self.assertEqual(hook.ledger_today(), [])
+        self.assertEqual(sum(1 for line in self.path.read_text().splitlines() if '"release"' in line), 1)
+
+    def test_partial_fill_counts_what_filled(self):
+        self.place("ord-2", qty="10", px="20")
+        self.orders({"id": "ord-2", "state": "partially_filled_rest_cancelled", "quantity": "10",
+                     "cumulative_quantity": "4"})
+        [row] = hook.ledger_today()
+        self.assertEqual(row["cost_usd"], 80.0)
+
+    def test_option_order_uses_processed_quantity(self):
+        import json
+        hook.post({"tool_name": "mcp__robinhood-trading__place_option_order",
+                   "tool_input": {"quantity": "2", "price": "1.5", "type": "limit", "legs": []},
+                   "tool_response": json.dumps({"data": {"id": "opt-1"}})})  # unparseable: counted anyway
+        self.orders({"id": "opt-1", "state": "cancelled", "quantity": "2", "processed_quantity": "0"},
+                    tool="get_option_orders")
+        self.assertEqual(hook.ledger_today(), [])
+
+    def test_filled_and_unknown_orders_are_not_released(self):
+        self.place("ord-3")
+        self.orders({"id": "ord-3", "state": "filled", "quantity": "39", "cumulative_quantity": "39"},
+                    {"id": "someone-else", "state": "cancelled", "quantity": "1", "cumulative_quantity": "0"},
+                    {"id": "ord-3", "state": "cancelled"})  # no quantities: can't tell, keep counting
+        self.assertEqual(len(hook.ledger_today()), 1)
+        self.orders("garbage")
+        hook.post({"tool_name": "mcp__robinhood-trading__get_equity_orders", "tool_input": {},
+                   "tool_response": "not json"})
+        self.assertEqual(len(hook.ledger_today()), 1)
+
+    def test_released_order_no_longer_blocks_a_new_entry(self):
+        self.place("ord-4")
+        order = hook.normalize("mcp__robinhood-trading__place_equity_order",
+                               {"symbol": "MUU", "side": "buy", "type": "limit", "quantity": "39",
+                                "limit_price": "26.75"})
+        self.assertIn("would deploy", guardrails.check(PCT, order, hook.ledger_today(), TODAY, 1405.28)[1])
+        self.orders({"id": "ord-4", "state": "cancelled", "quantity": "39", "cumulative_quantity": "0"})
+        self.assertTrue(guardrails.check(PCT, order, hook.ledger_today(), TODAY, 1405.28)[0])
+
     def test_unparseable_order_still_counts(self):
         import json
         hook.post({"tool_name": "mcp__robinhood-trading__place_equity_order",

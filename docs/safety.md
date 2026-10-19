@@ -32,7 +32,7 @@ entries until it has today's:
 |---|---|
 | Stock order | ≤ 75% of the account, limit orders (or a dollar-amount market buy) |
 | Options | ≤ 8% of the account max loss per order; long calls/puts or 1:1 verticals only; ≥ 3 days to expiry |
-| Per day | ≤ 3 new positions, ≤ 100% of the account deployed |
+| Per day | ≤ 3 new positions, ≤ 100% of the account deployed (an entry Robinhood reports cancelled or rejected unfilled stops counting once Claude reads its order state; a partial fill counts what filled) |
 | Daily loss stop | no new entries once the account is 20% below its first `get_portfolio` value of the day (`max_daily_loss_pct`); exits always pass |
 | Drawdown pause | no new entries once the account is 30% below its highest recorded value (`max_drawdown_pct`); you resume it with `rhgex peak reset` |
 | Blocked both ways | nothing by default; the template has commented-out examples (index funds you also buy elsewhere, stocks you hold elsewhere) |
