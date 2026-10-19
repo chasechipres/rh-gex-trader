@@ -209,8 +209,15 @@ one line and stop (after steps 5 and 6, if they apply).
 2. **Ingest new posts.** Use claude-in-chrome in the user's logged-in Chrome. Open X's search with the
    Latest tab, `https://x.com/search?q=from%3AHan_Akamatsu%20since%3AYYYY-MM-DD&f=live` (the date of the
    latest file in `private/notes/posts/`), not the profile page: the profile skips posts and its endless scroll can
-   hang the tab. Collect posts with one `javascript_tool` call that scrolls a few times and reads each
-   `article`'s time, status link and text, then open each relevant post's page to read its chart.
+   hang the tab. Collect posts by pasting [docs/x-collect.js](docs/x-collect.js) into one `javascript_tool` call
+   (it scrolls to the end of the results, keeps the posts in the page and returns their count), then read them
+   with `rhgexBatch(0)`, `rhgexBatch(<next>)`, ... until `next` is null: about 3k characters a call, only posts
+   that name a `$TICKER` or carry an image (`rhgexBatch(0, {all: true})` for everything; `skipped` says how many
+   were left out). Each post comes back as its status id, UTC time, image count and text with links stripped:
+   Claude in Chrome blocks any result holding a URL or query string, so never return `href`s or raw page text.
+   The post's link is `https://x.com/Han_Akamatsu/status/<id>`; open each relevant one to read its chart and
+   any text cut off at "Show more". If a batch still comes back `[BLOCKED...]`, re-read it smaller
+   (`rhgexBatch(<i>, {budget: 800})`) rather than one post at a time.
    Read posts newer than the latest file in `private/notes/posts/`. For each relevant post, save
    `private/notes/posts/YYYY-MM-DD-HHMM-<slug>.md` (date and time in this computer's local time zone, which
    `private/CLAUDE.md` names) with:
