@@ -11,6 +11,7 @@ A domain and a free Cloudflare account are only needed if you also use the spare
 | | Cost |
 |---|---|
 | Oracle Cloud server (Ampere A1, Always Free) | $0, with the quota policy below so nothing billable can be created |
+| Tailscale (Personal plan, only for the optional [browser desktop](#6-optional-the-desktop-in-any-browser)) | $0 |
 | Cloudflare (DNS, proxy, SSL) | $0 |
 | Claude plan, X subscription to the source | what you already pay |
 | Domain | what you already pay (only for the optional website) |
@@ -21,6 +22,7 @@ A domain and a free Cloudflare account are only needed if you also use the spare
 
 - [Let Claude drive the consoles](#let-claude-drive-the-consoles-optional) · [1. Oracle account](#1-oracle-account-and-a-0-guarantee) · [2. Create the server](#2-create-the-server)
 - [3. Set up the server](#3-set-up-the-server) · [4. Start the trader](#4-start-the-trader) · [5. Day to day](#5-day-to-day)
+  · [6. Optional: the desktop in any browser](#6-optional-the-desktop-in-any-browser)
 - [Extra: what I did with the spare capacity](#extra-what-i-did-with-the-spare-capacity) · [Troubleshooting](#troubleshooting)
 
 ## Let Claude drive the consoles (optional)
@@ -186,11 +188,111 @@ that session so both don't run exit checks.
 | To | Do |
 |---|---|
 | Check on it from anywhere (even a phone SSH app) | `ssh -i ~/.ssh/oracle.key ubuntu@<IP>`, then `tmux attach -t trader`; detach with **Ctrl+B, D** (never type `exit` there) |
-| Watch Chrome or re-log in to X or Robinhood | the remote desktop, through the tunnel |
+| Watch Chrome or re-log in to X or Robinhood | the remote desktop, through the tunnel (or in a browser with [step 6](#6-optional-the-desktop-in-any-browser)) |
 | Leave the remote desktop | close its window; **don't log out**, which closes Chrome and cuts off X and Claude in Chrome |
 | Update | it updates itself each cycle; when it asks for a restart, exit `claude` and run the session-start command in the same tmux window |
 | After a reboot (yours or Oracle maintenance) | remote desktop → open Chrome (unlock the keyring) → terminal → `tmux new -s trader` → `cd rh-gex-trader` → session-start command → pin the Linux browser → `/trading-day`. Resting stops protect positions meanwhile. |
 | Track results | your private repo on GitHub, synced every cycle |
+
+## 6. Optional: the desktop in any browser
+
+The SSH tunnel needs an SSH client and a Remote Desktop app on every device, which is awkward on a phone.
+[Apache Guacamole](https://guacamole.apache.org/) puts the same desktop in a browser tab, and
+[Tailscale](https://tailscale.com/) (a private network between your own devices, free for personal use) makes it
+reachable over HTTPS from your devices only. No port opens to the internet: the Oracle firewall still allows only SSH.
+
+1. **Install Docker and Tailscale** over SSH:
+
+   ```sh
+   sudo apt install -y docker.io docker-compose-v2 && sudo usermod -aG docker ubuntu
+   curl -fsSL https://tailscale.com/install.sh | sh
+   sudo tailscale up --hostname=claude-box    # prints a login link: open it and approve the server
+   ```
+
+   Log out of SSH and back in so the `docker` group applies.
+2. **In the [Tailscale admin console](https://login.tailscale.com/admin):** DNS → turn on **MagicDNS** and
+   **HTTPS Certificates**; Machines → claude-box → ⋯ → **Disable key expiry** (otherwise the server drops off
+   your network after 180 days).
+3. **Run Guacamole** from `~/guacamole/docker-compose.yml`. Use 1.6.0 or later: the 1.5.x images have no ARM
+   build for the A1 server.
+
+   ```yaml
+   services:
+     guacd:
+       image: guacamole/guacd:1.6.0
+       network_mode: host               # reaches xrdp on 127.0.0.1:3389; nothing is published
+       command: ["-b", "127.0.0.1"]     # passed on to guacd: listen on localhost only
+       restart: unless-stopped
+     guacamole:
+       image: guacamole/guacamole:1.6.0
+       network_mode: host
+       depends_on: [guacd]
+       environment:
+         GUACAMOLE_HOME: /etc/guacamole-home
+         CATALINA_OPTS: -Xmx256m          # keep Tomcat small: Chrome and Claude share this server
+         WEBAPP_CONTEXT: ROOT             # serve at / instead of /guacamole/
+       volumes:
+         - ./home:/etc/guacamole-home:ro
+       restart: unless-stopped
+   ```
+
+   `~/guacamole/home/guacamole.properties` holds two lines, `guacd-hostname: 127.0.0.1` and `guacd-port: 4822`.
+4. **Set the web login** with `~/guacamole/set-password.sh` (`chmod +x` it, then run it yourself in a terminal).
+   It stores only a SHA-256 hash of the password, and the desktop connection stores no password: xrdp asks for
+   the `ubuntu` one.
+
+   ```sh
+   #!/bin/sh
+   set -e
+   cd "$(dirname "$0")"
+   printf "Guacamole username: "; read -r user
+   stty -echo; printf "Guacamole password (12+ chars): "; read -r pw; printf "\nAgain: "; read -r pw2; stty echo; echo
+   [ "$pw" = "$pw2" ] || { echo "passwords differ"; exit 1; }
+   [ ${#pw} -ge 12 ] || { echo "use at least 12 characters"; exit 1; }
+   hash=$(printf %s "$pw" | sha256sum | cut -d' ' -f1)
+   umask 077
+   cat > home/user-mapping.xml <<XML
+   <user-mapping>
+     <authorize username="$user" password="$hash" encoding="sha256">
+       <connection name="claude-box desktop">
+         <protocol>rdp</protocol>
+         <param name="hostname">127.0.0.1</param>
+         <param name="port">3389</param>
+         <param name="username">ubuntu</param>
+         <param name="security">any</param>
+         <param name="ignore-cert">true</param>
+         <param name="color-depth">24</param>
+         <param name="resize-method">display-update</param>
+         <param name="enable-wallpaper">false</param>
+       </connection>
+     </authorize>
+   </user-mapping>
+   XML
+   chmod 644 home/user-mapping.xml   # the container must read it; it holds only a hash
+   docker compose restart guacamole >/dev/null 2>&1 || true
+   ```
+
+   **`color-depth` must match the desktop session that's already running** (24 here). xrdp keeps one session
+   per user and color depth, so a match rejoins the desktop where Chrome runs; a mismatch starts a second,
+   empty one.
+5. **Start it and publish it on your tailnet:**
+
+   ```sh
+   cd ~/guacamole && docker compose up -d
+   sudo tailscale serve --bg --https=443 http://127.0.0.1:8080
+   ```
+
+   Both containers restart on their own after a reboot and use about 0.3 GB of memory. `tailscale serve status`
+   shows the address, `https://claude-box.<your-tailnet>.ts.net/`.
+6. **On each device** (Windows, Mac, phone), install Tailscale and sign in with the same account, open that
+   address, log in, click **claude-box desktop**, and log in to xrdp as `ubuntu`.
+
+- **Leave by closing the tab, never by logging out** of the desktop (logging out closes Chrome).
+- **One viewer at a time:** opening it in Guacamole takes the desktop over from a connected Remote Desktop app,
+  and the other way round. It's the same session either way.
+- **Ctrl+Alt+Shift** opens Guacamole's menu: a clipboard box for copying text between your device and the
+  desktop, an on-screen keyboard and display settings.
+- Once Tailscale is up, SSH works over it too: `ssh -i ~/.ssh/oracle.key ubuntu@claude-box`.
 
 ## Extra: what I did with the spare capacity
 
@@ -230,6 +332,8 @@ nameservers at your registrar) and a static page.
 | Remote desktop shows a black screen | `~/.xsession` must contain `xfce4-session`; log out of other desktop sessions for that user |
 | `/chrome` says the extension isn't detected | Chrome must be running in the remote desktop, as the same user as `claude`; restart Chrome once after the first `/chrome` |
 | A cycle skipped reading posts, asking which browser to use | the extension is signed in on another Chrome too; pin the session to the Linux browser (step 4) |
+| Guacamole opens a second, empty desktop | its `color-depth` doesn't match the running session's; find that in `/var/log/xrdp.log` and set it in `set-password.sh`, then rerun it |
+| The Guacamole address doesn't load | Tailscale must be connected on that device, with MagicDNS and HTTPS Certificates on in the admin console |
 | Cycles run at the wrong times | `timedatectl` should show the zone `private/CLAUDE.md` names; change one to match the other |
 | The website times out but `curl localhost` works on the server | check both the Oracle security list and the `iptables` rules |
 | Cloudflare shows "too many redirects" | SSL/TLS mode isn't Full (strict) |
