@@ -57,7 +57,8 @@ class Simulate(unittest.TestCase):
         self.assertEqual(run([(61, 62, 60.5, 61.5, 300)])["dip"], "skip: never touched his level")
 
     def test_posted_mid_session_counts_from_the_post(self):
-        call = CALL | {"posted_at": "2026-10-19T07:20"}  # 10:20 ET from a Pacific machine
+        local = MON.replace(hour=10, minute=20).astimezone().replace(tzinfo=None)  # 10:20 ET, this machine's clock
+        call = CALL | {"posted_at": local.isoformat(timespec="minutes")}
         out = replay.simulate(call, HISTORY + session(MON, [(60.5, 60.6, 59.6, 59.8, 300), (59.8, 60.5, 59.7,
                               60.4, 300), (60.4, 61, 60.3, 61, 100)]), SPY, 1400)
         self.assertEqual(out["dip"], "skip: never touched his level")  # the touch was before he posted
