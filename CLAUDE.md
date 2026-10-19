@@ -49,8 +49,9 @@ uv run python -m rhgex peak show                                                
 uv run python -m rhgex journal TICKER trade|skip|watch|exit --thesis "..." --confidence 0.7 --source "..."
 uv run python -m rhgex journal TICKER trade --type shares|lev-long|inverse|call|put|spread ...   # --type is required for trades
 uv run python -m rhgex journal TICKER exit --pnl -6.50 --pnl-pct -40 --thesis "..." --confidence 1
-uv run python -m rhgex calls add TICKER --direction D --setup uptrend-dip|downtrend-dip|breakdown|breakout|range|other --level PX --target PX --invalid PX --source URL --posted "YYYY-MM-DD HH:MM" [--by YYYY-MM-DD] [--above|--below PX]
+uv run python -m rhgex calls add TICKER --direction D --setup uptrend-dip|downtrend-dip|breakdown|breakout|range|other --level PX --target PX [--invalid PX] --source URL --posted "YYYY-MM-DD HH:MM" [--by YYYY-MM-DD] [--above|--below PX]  # no --invalid: half an ATR past his level
 uv run python -m rhgex calls check|stats                         # score his open calls; hit rate by setup type
+uv run python -m rhgex replay --account PX [--since YYYY-MM-DD]  # his dip calls on 15-min bars: dip-buy vs reclaim vs reclaim held
 uv run python -m rhgex record [--readme --account-value PX]   # live P/L; updates private/README.md
 uv run python -m rhgex sync [-m "msg"] [--pull]                  # commit private/, then pull + push it (if it has a remote)
 uv run python -m rhgex init --check                              # what's set up in private/ and what's missing
@@ -62,6 +63,7 @@ uv run python -m rhgex watch add TICKER --above|--below PX --stop PX --target PX
 uv run python -m rhgex watch check --price TICKER=PX ...         # open triggers vs price: TRIGGERED/WAITING/EXPIRED
 uv run python -m rhgex watch close TICKER --reason "..."         # entered, skipped or the setup died
 uv run python -m rhgex monitor --minutes 60 [--close 13:00]      # the watcher: polls quotes, exits on a level cross or the heartbeat
+uv run python -m rhgex monitor --stats [--since YYYY-MM-DD]      # watcher runs and events per day vs a 15-minute loop
 uv run python -m rhgex exits [--price TICKER=PX ...]             # open plans vs price: STOP_HIT/TARGET_HIT/AT_1R/EXPIRING/EARNINGS_SOON/TIME_STOP
 ```
 
@@ -227,7 +229,8 @@ one line and stop (after steps 5 and 6, if they apply).
    unfamiliar; if it doesn't exist yet, write it from his pinned "Heatseeker for beginners" thread) when a
    post teaches something durable: how he reads gamma, which setups he favors, how his levels have played
    out. Keep a running record of his calls versus what actually happened: log every directional call (a
-   level, a target and a price that proves it wrong) with `calls add` (`--posted` is the post's time from its note name), and run `calls check` once per cycle.
+   level, a target and the price he says proves it wrong; leave out `--invalid` when he names none, and the
+   call gets half an ATR past his level, marked `invalid_from: atr`) with `calls add` (`--posted` is the post's time from its note name), and run `calls check` once per cycle.
    The setup is `downtrend-dip`/`uptrend-dip` for buying support against/with the trend, `breakdown`/
    `breakout` for a lost or reclaimed level. A conditional call ("lose 723 and it's 716") gets its trigger,
    `--below 723` (or `--above`), so it's scored only once price gets there; log both sides of a two-sided pivot
@@ -243,8 +246,9 @@ one line and stop (after steps 5 and 6, if they apply).
    A logged wash-sale window (`wash_sale_window`) is a warning, not a block: re-entering is allowed, but say
    so in the journal entry.
    - Blocked ideas: `private/CLAUDE.md` says why each symbol is blocked and what to use instead. For an index
-     whose ETFs are blocked (S&P 500 funds, say), use the index's own options: **SPX or XSP** for the S&P 500
-     (SPX ~= 10x SPY; XSP = SPX / 10).
+     whose ETFs are blocked (S&P 500 funds, say), the index's own options (**SPX or XSP** for the S&P 500; SPX
+     ~= 10x SPY, XSP = SPX / 10) are an alternative only if `private/CLAUDE.md` doesn't block them too: some
+     owners treat them as the same exposure for wash sales. `blocks` shows what's blocked.
 6. **Decide like a skeptical analyst.** The source is an input, not an order. Reject most ideas. Trade only
    when the source's thesis, the technicals, and your own GEX read line up, and:
    - trend and momentum agree with the trade, or a reversal is confirmed by price and volume
@@ -303,7 +307,9 @@ one line and stop (after steps 5 and 6, if they apply).
      - it's still below the level at two checks in a row (a cycle and the next exit check)
      - the name is in negative gamma (below the `gex` zero-gamma flip)
      - the trend is down or mixed
-     Express it with a put or put vertical (`fit --direction bearish`). The stop is just above the lost level
+     Express it with a put or put vertical (`fit --direction bearish`), or, when neither fits, the stock's
+     listed inverse fund (`lev TICKER`) under the leveraged-fund rules above (thesis
+     `[breakdown trial] [leveraged trial]`); no fund either: `skip`. The stop is just above the lost level
      (a reclaim means the thesis is wrong); the target is his next level down or the put wall. While price
      still holds the level, a `watch` with its trigger `--below` the level catches the break. Start the journal
      thesis with `[breakdown trial]` so the weekly review can score these separately: keep, change or drop
@@ -314,17 +320,24 @@ one line and stop (after steps 5 and 6, if they apply).
      these setups. All of these must hold:
      - price traded at or below his level after the post
      - it never traded below the stop: his invalidation (the price he says proves it wrong), or, if he gave
-       none, half the daily ATR (`research` reports `atr14`) below his level. Set it when the watch is added,
-       before price gets there, and never move it down; name it in the thesis (`stop: his` or `stop: atr`)
+       none, half the daily ATR below his level (the `invalid` that `calls add` logged for it). Set it when the
+       watch is added, before price gets there, and never move it down; name it in the thesis (`stop: his` or
+       `stop: atr`)
      - a 15-minute bar then closed back above the level on volume above its 20-bar average
        (`get_equity_historicals` with 15-minute bars), by 15:30 ET
      The stop is that price, not the swept low (wicks stop out a tighter one); the target is his next
-     level up; reward:risk at least 1.5 from the entry price, with normal 5% sizing. **Sell by 15:45 ET the same
-     day** if neither the stop nor the target hit: held overnight, these gap through their stops. Before the
+     level up; reward:risk at least 1.5 from the entry price, with normal 5% sizing. **Vehicle: shares**, or the
+     stock's 2x fund when shares would be capped below the 5% risk (leveraged-fund rules; thesis
+     `[reclaim] [leveraged trial]`); **never options**: a one-day hold pays an option's bid/ask twice and its
+     time value for nothing. **Sell by 15:45 ET the same day** if neither the stop nor the target hit: held
+     overnight, these gap through their stops. Before the
      reclaim, `watch add --reclaim` with `--above` his level and `--stop` that stop catches it: the
      watcher fires it only on the confirmed 15-minute close (and drops it if the stop trades first); from
      `watch check`, look at the 15-minute bars before entering. Start the journal and plan theses with
-     `[reclaim]`, so the exit check knows to sell it the same day. The weekly review compares `stop: atr`
+     `[reclaim]`, so the exit check knows to sell it the same day, and note the market at entry
+     (`market: SPY +0.4% from open`; quoting SPY is fine, only trading it is blocked): reclaims are longs
+     taken on the same bounces, so the review checks whether a market filter would have helped before anyone
+     adds one. The weekly review compares `stop: atr`
      results with `stop: his`; if the `stop: atr` trades are down more than 3R in total after 5 of them,
      propose going back to skipping calls without his invalidation.
    - **no revenge trades:** after a stop-out, no re-entry in that name for 2 trading days unless he posts a
@@ -395,8 +408,16 @@ one line and stop (after steps 5 and 6, if they apply).
 12. **Weekly review** (the last cycle of each trading week, or after every 10 closed trades, whichever comes
    first): write `private/notes/reviews/YYYY-MM-DD.md` from the journal and `record`: P/L by setup type and by entry
    confidence, which exit and entry rules fired and how those trades did, the source's calls versus outcomes (`calls stats`),
-   each trial from the track record's **Trials** table (a trial past its review date or trade count gets a keep, change
-   or drop proposal), and any rule changes worth proposing. Propose changes to the user; don't change the rules on your own.
+   each tag from the track record's **By setup tag** table (a trial past its review date or trade count gets a keep,
+   change or drop proposal), and any rule changes worth proposing. Also:
+   - **his dip calls replayed:** `replay --account <value> --since <Monday>` (and the whole history), the dip-buy,
+     reclaim and held versions side by side, split by `stop: his` / `stop: atr` and by the market's direction
+     at entry; compare the live `[reclaim]` trades with their replay
+   - **the watcher:** `monitor --stats --since <Monday>`: wake-ups it caused versus a 15-minute loop's checks, and
+     its events by type
+   - **limits that bound:** skips because of the 3-a-day entry cap or the theme cap, and whether a spread was
+     tried this week and what Robinhood said ([#23](https://github.com/chasechipres/rh-gex-trader/issues/23))
+   Propose changes to the user; don't change the rules on your own.
 
 ## Running it
 

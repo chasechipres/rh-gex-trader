@@ -114,6 +114,21 @@ class Terminal(Base):
         self.assertEqual(self.run_monitor({"MU": 930})[0], "IDLE")
 
 
+class Log(Base):
+    def test_runs_are_logged_and_summed(self):
+        log = self.fired.parent / "monitor.jsonl"
+        self.watch("MU", "above", 922, "", stop=905, target=950)
+        clock = Clock(MON)
+        for px in (900, 923):
+            monitor.run(30, 60, emit=self.lines.append, now=clock.now, sleep=clock.sleep,
+                        quotes=lambda syms, t, px=px: {"MU": px}, fired_path=self.fired,
+                        watches_path=self.watches, plans_path=self.plans, log_path=log)
+        day = monitor.stats(log)[0]
+        self.assertEqual((day["runs"], day["minutes"], day["loop_15min_checks"]), (2, 30, 2))
+        self.assertEqual((day["ended"], day["events"]), ({"HEARTBEAT": 1, "EVENT": 1}, {"WATCH_TRIGGERED": 1}))
+        self.assertEqual(monitor.stats(log, since="2026-10-20"), [])
+
+
 class Reclaim(Base):
     """CRWV, his $60 king with a $58 invalidation, on 15-minute bars."""
 

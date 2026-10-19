@@ -35,12 +35,19 @@ def _entry_trade(exit_entry: dict, entries: list[dict]) -> dict | None:
     return trades[-1] if trades else None
 
 
-TRIAL_RE = re.compile(r"^\[([a-z][a-z ]* trial)\]")  # a thesis starting "[leveraged trial]" belongs to that trial
+TAG_RE = re.compile(r"\[([a-z][a-z ]*)\]\s*")  # leading tags: "[reclaim] [leveraged trial] ..." has both
+STOP_RE = re.compile(r"\bstop: (his|atr)\b")  # a reclaim's stop: his invalidation, or half an ATR (CLAUDE.md)
 
 
-def trial(entry: dict | None) -> str | None:
-    m = TRIAL_RE.match((entry or {}).get("thesis", "").strip())
-    return m.group(1) if m else None
+def tags(entry: dict | None) -> list[str]:
+    """The setup tags a trade's thesis starts with; a reclaim also counts under its stop type."""
+    thesis, out = (entry or {}).get("thesis", "").strip(), []
+    while m := TAG_RE.match(thesis):
+        out.append(m.group(1))
+        thesis = thesis[m.end():]
+    if "reclaim" in out and (m := STOP_RE.search((entry or {}).get("thesis", ""))):
+        out.append(f"reclaim, stop: {m.group(1)}")
+    return out
 
 
 def entry_confidence(exit_entry: dict, entries: list[dict]) -> float | None:
@@ -81,13 +88,13 @@ def summarize(entries: list[dict], plans: list[dict] = ()) -> dict:
     types = [{"type": t, **_group([e for e in live if e["type"] == t])}
              for t in TYPES + ["unknown"] if any(e["type"] == t for e in live)]
     for e in live:
-        e["trial"] = trial(_entry_trade(e, entries))
-    entered = [trial(e) for e in entries if e["action"] == "trade"]
-    trials = [{"trial": t, "entered": entered.count(t), **_group([e for e in live if e["trial"] == t])}
-              for t in sorted({t for t in entered if t})]
+        e["tags"] = tags(_entry_trade(e, entries))
+    entered = [t for e in entries if e["action"] == "trade" for t in tags(e)]
+    by_tag = [{"tag": t, "entered": entered.count(t), **_group([e for e in live if t in e["tags"]])}
+              for t in sorted(set(entered))]
     return {"live": {"trades": live, "closed": len(live), "wins": sum(1 for e in live if e["pnl"] > 0),
                      "realized_pnl": round(sum(e["pnl"] for e in live), 2)},
-            "by_confidence": bands, "by_type": types, "trials": trials}
+            "by_confidence": bands, "by_type": types, "by_tag": by_tag}
 
 
 def _rate(wins: int, n: int) -> str:
@@ -120,11 +127,11 @@ def render(s: dict, account_value: float | None = None, today: date | None = Non
         for t in s["by_type"]:
             lines.append(f"| {t['type']} | {t['closed']} | {_rate(t['wins'], t['closed'])} | ${t['pnl']:,.2f} |")
         lines.append("")
-    if s.get("trials"):
-        lines += ["**Trials** (rules on probation; review them from here)", "",
-                  "| Trial | Entered | Closed | Win rate | P/L |", "|---|---|---|---|---|"]
-        for t in s["trials"]:
-            lines.append(f"| {t['trial']} | {t['entered']} | {t['closed']} | {_rate(t['wins'], t['closed'])} | "
+    if s.get("by_tag"):
+        lines += ["**By setup tag** (trials and tagged setups; the weekly review scores them from here)", "",
+                  "| Tag | Entered | Closed | Win rate | P/L |", "|---|---|---|---|---|"]
+        for t in s["by_tag"]:
+            lines.append(f"| {t['tag']} | {t['entered']} | {t['closed']} | {_rate(t['wins'], t['closed'])} | "
                          f"${t['pnl']:,.2f} |")
         lines.append("")
     if any(b["closed"] for b in s.get("by_confidence", [])):

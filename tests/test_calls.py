@@ -28,6 +28,16 @@ class Calls(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.add(symbol="ORCL", setup="vibes")
 
+    def test_atr_invalidation_when_he_names_none(self):
+        self.assertEqual(self.add()["invalid_from"], "his")
+        c = self.add(symbol="ASTS", direction="bullish", setup="downtrend-dip", level=40, target=45, invalid=None,
+                     atr=4.51)
+        self.assertEqual((c["invalid"], c["invalid_from"]), (37.74, "atr"))  # 40 - 2.255, half an ATR under his level
+        c = self.add(symbol="CRWV", level=63, target=60, invalid=None, atr=4.0)  # bearish: above it
+        self.assertEqual((c["invalid"], c["invalid_from"]), (65.0, "atr"))
+        with self.assertRaises(ValueError):
+            self.add(symbol="SMCI", invalid=None)  # no ATR to compute it from
+
     def test_score(self):
         c = self.add()
         self.assertEqual(calls.score(c, [(D("2026-10-14"), 740, 726.4)], D("2026-10-14")), ("hit", "2026-10-14"))
