@@ -38,6 +38,17 @@ class Preflight(unittest.TestCase):
         self.assertIn("blocked", failed(preflight.evaluate(good(symbol="SPY"), ctx())))
         self.assertIn("reward_risk", failed(preflight.evaluate(good(target=150), ctx())))
 
+    def test_entry_cap_reports_the_breakout_limit(self):
+        cap = {c["check"]: c for c in preflight.evaluate(good(), ctx())}["entry_cap"]
+        self.assertTrue(cap["ok"])
+        self.assertIn("highest ORCL entry for 1.5 R:R: 145.4", cap["detail"])  # (158 + 1.5 * 137) / 2.5
+
+    def test_entry_cap_translates_to_the_fund(self):
+        c = good(symbol="MUU", asset="stock", legs=[], price=922, stop=905, target=950, quote=(26.70, 26.74))
+        cap = {c["check"]: c for c in preflight.evaluate(c, ctx())}["entry_cap"]
+        self.assertIn("highest MU entry for 1.5 R:R: 923.0", cap["detail"])
+        self.assertIn("MUU limit cap 26.78", cap["detail"])  # 26.72 * (1 + 2 * (923 / 922 - 1))
+
     def test_dte_and_earnings_before_expiry(self):
         self.assertIn("dte", failed(preflight.evaluate(good(expiration="2026-10-20"), ctx())))
         c = ctx(earnings=lambda s: date(2026, 10, 27))

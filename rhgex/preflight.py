@@ -74,6 +74,19 @@ def fund_liquidity(c: Candidate, ctx: Context, leverage: float) -> tuple[str, bo
     return "fund_liquidity", spread_ok and volume_ok, detail
 
 
+def entry_cap(c: Candidate, fund: tuple[str, int] | None) -> tuple[str, bool, str]:
+    """The limit a breakout entry may pay up to (CLAUDE.md, entry step 8.3): the underlying price where
+    reward:risk falls to the minimum, and for a leveraged fund with --quote, the fund's price at that point."""
+    cap = exits.entry_cap(c.direction, c.stop, c.target)
+    worst = "highest" if c.direction == "bullish" else "lowest"
+    detail = f"{worst} {c.symbol.upper() if not fund else fund[0]} entry for {exits.MIN_REWARD_RISK} R:R: {cap}"
+    if fund and c.quote:
+        mid = sum(c.quote) / 2
+        fund_cap = leveraged.fund_level(mid, c.price, cap, fund[1])
+        detail += f"; {c.symbol.upper()} limit cap {fund_cap:.2f} (from its mid {mid:.2f})"
+    return "entry_cap", True, detail
+
+
 def _days_ago(d: date, today: date) -> int:
     return exits.trading_days_until(today, d) if d <= today else 0
 
@@ -125,6 +138,7 @@ def evaluate(c: Candidate, ctx: Context) -> list[dict]:
         add("reward_risk", rr >= exits.MIN_REWARD_RISK, f"{rr} (min {exits.MIN_REWARD_RISK})")
     except ValueError as e:
         add("reward_risk", False, str(e))
+    add(*entry_cap(c, fund))
 
     er = ctx.earnings(stock) if ctx.earnings else None
     if c.asset == "option":

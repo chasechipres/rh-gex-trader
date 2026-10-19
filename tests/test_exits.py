@@ -40,6 +40,12 @@ class Plans(unittest.TestCase):
         plan = exits.add("ARM", "stock", "bullish", 291, 325, "", path=self.path, price=304.6)
         self.assertEqual(plan["reward_risk"], 1.5)
 
+    def test_entry_cap(self):
+        self.assertEqual(exits.entry_cap("bullish", 291, 325), 304.6)  # (325 + 1.5 * 291) / 2.5
+        self.assertEqual(exits.reward_risk("bullish", 304.6, 291, 325), 1.5)
+        self.assertEqual(exits.entry_cap("bearish", 35.8, 32.5), 34.48)  # lowest put/inverse entry
+        self.assertEqual(exits.reward_risk("bearish", 34.48, 35.8, 32.5), 1.5)
+
     def test_existing_skips_reward_risk(self):
         plan = exits.add("ARM", "stock", "bullish", 291, 325, "held", path=self.path, price=320, existing=True)
         self.assertIsNone(plan["reward_risk"])
