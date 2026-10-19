@@ -3,16 +3,30 @@
 The reasoning behind the rules in [CLAUDE.md](../CLAUDE.md), for a small account (roughly $1,000-$5,000) funded
 with money you can lose and run for growth. The rules themselves live in CLAUDE.md; this page is the why.
 
-- [The goal](#the-goal) · [Swing trades](#swing-trades) · [Risk per trade](#risk-per-trade)
+- [The goal](#the-goal) · [The playbooks at a glance](#the-playbooks-at-a-glance) · [Swing trades](#swing-trades) · [Risk per trade](#risk-per-trade)
 - [How a setup becomes an order](#how-a-setup-becomes-an-order) · [What a small account changes](#what-a-small-account-changes)
 - [Why most ideas are skipped](#why-most-ideas-are-skipped) · [His dip levels: buy the reclaim](#his-dip-levels-buy-the-reclaim)
-- [Watching between cycles](#watching-between-cycles) · [What can still go wrong](#what-can-still-go-wrong)
+- [Watching between cycles](#watching-between-cycles) · [How the rules learn](#how-the-rules-learn) · [What can still go wrong](#what-can-still-go-wrong)
 
 ## The goal
 
 Grow a small account fast without letting one bad day end it. That means accepting a high loss rate per trade
 in exchange for winners that run, while hard limits (the hook) cap how much any order, day or drawdown can
 cost. The source supplies ideas; Claude decides; the hook has the last word.
+
+## The playbooks at a glance
+
+Every idea starts as one of his levels, then has to fit one of three playbooks. Anything else is a `skip` or a
+`watch`.
+
+| Playbook | When | Entry | Stop | Exit | Vehicle |
+|---|---|---|---|---|---|
+| **Swing with the trend** | His dip in an uptrend, or a breakout; trend, his thesis and the gamma read agree | At or near his level, or the trigger just past it | Where his thesis is wrong | Half at the target or +100%, trail the rest; time stop, expiry and earnings exits | Option that fits, else 2x fund if shares are capped, else shares |
+| **[Reclaim](#his-dip-levels-buy-the-reclaim)** | His dip level in a downtrend | Only after a 15-minute close back above it on volume | His invalidation, or half an ATR below his level | Target, stop, or **sold by 15:45 ET the same day** | Shares, or a 2x fund if capped; never options |
+| **Breakdown** (trial) | A "must hold" level lost, in negative gamma, still below it at two checks | After the second check | Just above the lost level | His next level down or the put wall | Put, else the stock's inverse fund |
+
+All three need reward:risk of at least 1.5 from the entry and risk 5% of the account. The limits below
+(entries per day, open risk, theme, leveraged funds) apply across all of them.
 
 ## Swing trades
 
@@ -89,12 +103,18 @@ One week is thin evidence, so the journal tags these `[reclaim]` and the weekly 
 other versions.
 
 About half his dip calls name no invalidation. For those the stop is **half the stock's daily ATR below his
-level**, the same distance the playbook already uses for watch stops. In the replay, that added the calls where
+level**, the same distance the playbook already uses for watch stops (`calls add` logs it as the call's
+invalidation, marked `invalid_from: atr`). In the replay, that added the calls where
 he said a level "must hold" but named nothing below it; a stop at his next level down added almost nothing, and a
 full ATR was too wide to pass 1.5 reward:risk (a wider stop can't sneak a trade in, it fails the check). The stop
 is set when the watch is added, before price gets there, so it can't be fitted to what price did. Each thesis says
 `stop: his` or `stop: atr`, and the weekly review keeps them apart; if the ATR stops lose more than 3R in total
 over their first 5 trades, the review proposes dropping them.
+
+Reclaims are bought with **shares** (a 2x fund when shares would be capped), never options: an option held for
+a few hours pays its bid/ask spread twice and its time value for nothing. And because reclaims are longs bought
+on the same bounces, each one notes the market's move from the open at entry: last week's winners all came on
+one market-wide bounce day, so the replay checks whether a market filter would have helped before one is added.
 
 ## Watching between cycles
 
@@ -115,6 +135,20 @@ account value, earnings and expiry dates, a fading thesis. The heartbeat scales 
 Its quotes come from Yahoo (a script can't call Robinhood) and can lag, so an event is a reason to look, never a
 trade: every action is confirmed on a Robinhood quote first. If quotes stop, it says so (`FEED_DOWN`) and the
 loop falls back to 15-minute checks, so a dead watcher never looks like a quiet market.
+
+## How the rules learn
+
+Rules change only on evidence, and only by the owner's decision; Claude proposes them in the weekly review.
+
+| Evidence | Tool | What it answers |
+|---|---|---|
+| His calls, scored | `calls add` / `calls stats` | How often each kind of call he makes hits its target before its invalidation |
+| Tagged trades | `record`, the **By setup tag** table | How each playbook and trial actually did (`[reclaim]`, `[breakdown trial]`, `[leveraged trial]`, and reclaims by stop type) |
+| His dip calls, replayed | `replay` | Dip-buy vs reclaim vs reclaim held on 15-minute bars, by stop type and by the market at entry: a bigger sample than live trades |
+| The watcher | `monitor --stats` | Wake-ups it caused vs a 15-minute loop, and which events fired |
+| Limits that bound | the journal's skips | Whether the entry cap, theme cap or Robinhood's spread refusal is costing trades |
+
+A trial has a review date or a trade count; at either, the review proposes keep, change or drop.
 
 ## What can still go wrong
 

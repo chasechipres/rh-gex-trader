@@ -45,18 +45,25 @@ decides, but every Robinhood call passes through `rhgex hook pre` first, and any
 refused. That split is what makes it safe to run unattended: judgment can be wrong, the limits can't be argued with.
 
 The source is an input, not an order: most ideas are skipped, and every decision is journaled with the post
-behind it. Trades are swing trades of days to two weeks, each sized so a full loss costs 5% of the account,
-using options when they fit, else 2x funds or shares ([why](docs/strategy.md)). His dip levels are bought only
-on a confirmed reclaim, sold the same day ([why](docs/strategy.md#his-dip-levels-buy-the-reclaim)). Three cycles
-a day (about 10:15am, 12:30pm and 3:00pm ET) read new posts and trade; between them, a watcher wakes Claude when a
-stop, target or trigger is crossed, and exit checks run on a heartbeat set by what's held
-([how](docs/strategy.md#watching-between-cycles)). The full rules are in [CLAUDE.md](CLAUDE.md).
+behind it. An idea becomes a trade only through one of three playbooks ([the why](docs/strategy.md)):
+
+| Playbook | Buys | Exit | Vehicle |
+|---|---|---|---|
+| **Swing with the trend** | his dip in an uptrend, or a breakout, when his thesis, the trend and the gamma read agree | half at the target, trail the rest; days to two weeks | option, else 2x fund, else shares |
+| **Reclaim** | his dip level in a downtrend, only after a 15-minute close back above it on volume | target, stop, or sold by 15:45 ET the same day | shares (2x fund if capped) |
+| **Breakdown** (trial) | the downside, once a "must hold" level is lost in negative gamma and stays lost for two checks | his next level down | put, else inverse fund |
+
+Every trade risks 5% of the account and needs 1.5 reward:risk. Three cycles a day (about 10:15am, 12:30pm and
+3:00pm ET) read new posts and trade; between them, a watcher wakes Claude when a stop, target or trigger is
+crossed, and exit checks run on a heartbeat set by what's held ([how](docs/strategy.md#watching-between-cycles)).
+A weekly review scores his calls, each playbook and a replay of his dip calls, and proposes rule changes to you
+([how the rules learn](docs/strategy.md#how-the-rules-learn)). The full rules are in [CLAUDE.md](CLAUDE.md).
 
 ## Docs
 
 | Doc | Read it when |
 |---|---|
-| [Strategy](docs/strategy.md) | why it trades this way: risk per trade, options vs. funds vs. shares, small-account limits |
+| [Strategy](docs/strategy.md) | the three playbooks and why: risk per trade, options vs. funds vs. shares, reclaims, the watcher, how the rules learn |
 | [Setup and settings](docs/setup.md) | installing, what's in `private/`, changing limits or preferences |
 | [Running it](docs/running.md) | the commands and a normal day, more than one machine, your track record, troubleshooting |
 | [Guardrails, exits and taxes](docs/safety.md) | what the hook blocks, how positions get out, wash sales |

@@ -29,6 +29,7 @@ uv run python -m rhgex gex SPX                   # regime, zero-gamma flip, call
 uv run python -m rhgex blocks                    # blocked symbols, limits, today's orders
 uv run python -m rhgex exits                     # open plans vs current prices
 uv run python -m rhgex monitor --minutes 30      # the watcher: exits with a JSON line on a level cross
+uv run python -m rhgex replay --account 1000     # his dip calls on 15-minute bars: dip-buy vs reclaim
 uv run python -m rhgex size --account 1000 --option-cost 45   # contracts for 5% risk
 uv run python -m rhgex fit XYZ --direction bullish --target 110 --budget 50   # calls/verticals that fit
 uv run python -m rhgex preflight XYZ --direction bullish --price 100 --stop 95 --target 110 \

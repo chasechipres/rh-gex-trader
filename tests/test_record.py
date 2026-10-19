@@ -63,19 +63,26 @@ class TradeType(unittest.TestCase):
         self.assertEqual(types, {"NVDA": "spread", "GME": "shares", "KTOS": "unknown", "TSLA": "put",
                                  "SOFI": "call"})
 
-    def test_trials_table(self):
+    def test_tag_table(self):
         entries = [
             {"time": "2026-10-16T10:00:00", "symbol": "NVD", "action": "trade", "thesis": "[breakdown trial] lost 7700"},
             {"time": "2026-10-16T10:05:00", "symbol": "NVDL", "action": "trade", "thesis": "[leveraged trial] 2x"},
             {"time": "2026-10-16T10:10:00", "symbol": "TSLL", "action": "trade", "thesis": "[leveraged trial] 2x"},
+            {"time": "2026-10-16T10:20:00", "symbol": "ASTS", "action": "trade", "thesis": "[reclaim] 40 king, stop: atr"},
+            {"time": "2026-10-16T10:30:00", "symbol": "MUU", "action": "trade",
+             "thesis": "[reclaim] [leveraged trial] 890, stop: his"},
             {"time": "2026-10-17T12:00:00", "symbol": "NVDL", "action": "exit", "pnl": 30.0},
             {"time": "2026-10-17T12:00:00", "symbol": "NVD", "action": "exit", "pnl": -20.0},
+            {"time": "2026-10-16T15:45:00", "symbol": "ASTS", "action": "exit", "pnl": 40.0},
+            {"time": "2026-10-16T15:45:00", "symbol": "MUU", "action": "exit", "pnl": -10.0},
         ]
         s = record.summarize(entries)
-        rows = {t["trial"]: (t["entered"], t["closed"], t["wins"], t["pnl"]) for t in s["trials"]}
-        self.assertEqual(rows, {"breakdown trial": (1, 1, 0, -20.0), "leveraged trial": (2, 1, 1, 30.0)})
-        self.assertIn("| leveraged trial | 2 | 1 | 1/1 (100%) | $30.00 |", record.render(s, 1400, date(2026, 10, 17)))
-        self.assertNotIn("**Trials**", record.render(record.summarize(self.ENTRIES), 1400, date(2026, 10, 17)))
+        rows = {t["tag"]: (t["entered"], t["closed"], t["wins"], t["pnl"]) for t in s["by_tag"]}
+        self.assertEqual(rows, {"breakdown trial": (1, 1, 0, -20.0), "leveraged trial": (3, 2, 1, 20.0),
+                                "reclaim": (2, 2, 1, 30.0), "reclaim, stop: atr": (1, 1, 1, 40.0),
+                                "reclaim, stop: his": (1, 1, 0, -10.0)})
+        self.assertIn("| leveraged trial | 3 | 2 | 1/2 (50%) | $20.00 |", record.render(s, 1400, date(2026, 10, 17)))
+        self.assertNotIn("**By setup tag**", record.render(record.summarize(self.ENTRIES), 1400, date(2026, 10, 17)))
 
     def test_fund_types_from_the_plan(self):
         exit_ = {"symbol": "NVDL", "time": "2026-10-20T12:00:00", "action": "exit", "pnl": 10}

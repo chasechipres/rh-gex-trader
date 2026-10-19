@@ -16,6 +16,10 @@ on a Robinhood quote before acting. Yahoo can lag, so an event is a reason to lo
 
 Each event fires once per level and day (private/state/monitor.json, local to this machine), so a target that's
 been handled doesn't wake the session again; a raised stop is a new level and can fire.
+
+Every run appends one line to private/logs/monitor.jsonl (local): when it watched, how it ended and which events
+it raised. `monitor --stats` sums it per day for the weekly review: wake-ups the watcher caused versus the checks a
+15-minute loop would have run over the same minutes.
 """
 
 import json
@@ -28,6 +32,7 @@ from . import exits, paths, watches
 
 ET = ZoneInfo("America/New_York")
 FIRED = paths.STATE / "monitor.json"
+LOG = paths.LOGS / "monitor.jsonl"
 OPEN, SAME_DAY_EXIT_AT, RECLAIM_BY = "09:30", "15:45", "15:30"  # ET; a reclaim bar must close by RECLAIM_BY
 STALE_QUOTE_MIN = 10  # a quote older than this during regular hours counts as missing
 FEED_DOWN_POLLS = 5  # consecutive polls with a symbol unpriced before the watcher gives up
@@ -146,25 +151,36 @@ def yahoo_bars(symbol: str) -> list[dict]:
 
 def run(minutes: float, interval: float = 60, close: str = "16:00", emit=print, now=lambda: datetime.now(ET),
         sleep=time.sleep, quotes=yahoo_quotes, bars=yahoo_bars, fired_path: Path = FIRED,
-        watches_path: Path = watches.WATCHES, plans_path: Path = exits.PLANS) -> str:
-    """Poll until an event, the heartbeat, the close or a dead feed. Returns the final state it printed."""
-    start, misses = now(), {}
+        watches_path: Path = watches.WATCHES, plans_path: Path = exits.PLANS, log_path: Path | None = None) -> str:
+    """Poll until an event, the heartbeat, the close or a dead feed. Returns the final state it printed.
+    log_path: append this run's summary there (the CLI passes LOG)."""
+    start, misses, raised = now(), {}, []
+
+    def final(state: str, t: datetime, **extra) -> str:
+        emit(json.dumps({"monitor": state, "time": hhmm(t)} | extra))
+        if log_path is not None:
+            paths.ensure(log_path.parent)
+            with log_path.open("a") as f:
+                f.write(json.dumps({"date": t.astimezone(ET).date().isoformat(), "start": hhmm(start),
+                                    "end": hhmm(t), "state": state, "events": raised}) + "\n")
+        return state
+
     while True:
         t = now()
         if not market_open(t, close):
-            return final(emit, "CLOSED", t)
+            return final("CLOSED", t)
         ws = watches.open_watches(watches.load(watches_path))
         ws = [w for w in ws if t.astimezone(ET).date() <= date.fromisoformat(w["until"])]
         ps = exits.open_plans(exits.load(plans_path))
         syms = symbols(ws, ps)
         if not syms:
-            return final(emit, "IDLE", t, note="no open watches or plans")
+            return final("IDLE", t, note="no open watches or plans")
         prices = quotes(syms, t)
         for s in syms:
             misses[s] = 0 if s in prices else misses.get(s, 0) + 1
         dead = sorted(s for s, n in misses.items() if n >= FEED_DOWN_POLLS)
         if dead:
-            return final(emit, "FEED_DOWN", t, symbols=dead,
+            return final("FEED_DOWN", t, symbols=dead,
                          note="no fresh Yahoo quote for 5 polls; fall back to 15-minute exit checks")
         day, fired = t.astimezone(ET).date(), load_fired(fired_path)
         new = [e for e in events(ws, ps, prices, t, bars) if key(e, day) not in fired]
@@ -172,12 +188,29 @@ def run(minutes: float, interval: float = 60, close: str = "16:00", emit=print, 
             for e in new:
                 emit(json.dumps(e | {"time": hhmm(t), "source": "Yahoo (confirm on Robinhood)"}))
             save_fired(fired | {key(e, day) for e in new}, day, fired_path)
-            return final(emit, "EVENT", t, count=len(new))
+            raised = [e["event"] for e in new]
+            return final("EVENT", t, count=len(new))
         if (t - start).total_seconds() >= minutes * 60:
-            return final(emit, "HEARTBEAT", t, watching=syms)
+            return final("HEARTBEAT", t, watching=syms)
         sleep(interval)
 
 
-def final(emit, state: str, t: datetime, **extra) -> str:
-    emit(json.dumps({"monitor": state, "time": hhmm(t)} | extra))
-    return state
+def stats(path: Path = LOG, since: str | None = None) -> list[dict]:
+    """Per day: watcher runs (each one ends in a model wake-up), events by type, minutes watched, and the checks a
+    15-minute loop would have run over those minutes."""
+    days: dict[str, dict] = {}
+    for line in (path.read_text().splitlines() if path.exists() else []):
+        r = json.loads(line)
+        if since and r["date"] < since:
+            continue
+        d = days.setdefault(r["date"], {"date": r["date"], "runs": 0, "minutes": 0, "events": {}, "ended": {}})
+        d["runs"] += 1
+        h1, m1 = map(int, r["start"].split(":"))
+        h2, m2 = map(int, r["end"].split(":"))
+        d["minutes"] += max(0, (h2 * 60 + m2) - (h1 * 60 + m1))
+        d["ended"][r["state"]] = d["ended"].get(r["state"], 0) + 1
+        for e in r["events"]:
+            d["events"][e] = d["events"].get(e, 0) + 1
+    for d in days.values():
+        d["loop_15min_checks"] = -(-d["minutes"] // 15)  # ceiling
+    return sorted(days.values(), key=lambda d: d["date"])
