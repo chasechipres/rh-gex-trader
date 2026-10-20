@@ -144,7 +144,7 @@ Rules change only on evidence, and only by the owner's decision; Claude proposes
 |---|---|---|
 | His calls, scored | `calls add` / `calls stats` | How often each kind of call he makes hits its target before its invalidation |
 | Tagged trades | `record`, the **By setup tag** table | How each playbook and trial actually did (`[reclaim]`, `[breakdown trial]`, `[leveraged trial]`, and reclaims by stop type) |
-| His dip calls, replayed | `replay` | Dip-buy vs reclaim vs reclaim held on 15-minute bars, by stop type and by the market at entry: a bigger sample than live trades |
+| His dip calls, replayed | `replay` | Dip-buy vs reclaim vs reclaim held on 15-minute bars (plus what-ifs: a 1.2 R:R floor, a near touch), by stop type and by the market at entry: a bigger sample than live trades |
 | The watcher | `monitor --stats` | Wake-ups it caused vs a 15-minute loop, and which events fired |
 | Limits that bound | the journal's skips | Whether the entry cap, theme cap or Robinhood's spread refusal is costing trades |
 
