@@ -48,6 +48,12 @@ def reward_risk(direction: str, price: float, stop: float, target: float) -> flo
     return round(abs(target - price) / abs(price - stop), 2)
 
 
+def entry_cap(direction: str, stop: float, target: float) -> float:
+    """The worst underlying price a new entry can take and still have MIN_REWARD_RISK: the highest for a bullish
+    entry, the lowest for a bearish one. A breakout's marketable limit never goes past it."""
+    return round((target + MIN_REWARD_RISK * stop) / (1 + MIN_REWARD_RISK), 2)
+
+
 def add(symbol: str, asset: str, direction: str, stop: float, target: float, thesis: str,
         expiration: str | None = None, premium_stop: float | None = None, path: Path = PLANS,
         price: float | None = None, existing: bool = False) -> dict:

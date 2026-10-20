@@ -379,6 +379,12 @@ one line and stop (after steps 5 and 6, if they apply).
       by up to a quarter of the bid/ask spread toward the ask. Still unfilled: cancel it, and `plan close`
       if you're dropping the trade. Never pay a price that pushes reward:risk below 1.5, and never leave an
       unfilled entry order open into the next cycle.
+      **Breakouts and breakdowns pay the spread:** when a `--above`/`--below` watch fires on a level break
+      (not a reclaim, not a dip buy), price is moving away from the order, and a limit at the mid gets left
+      behind. Shares and funds: place a marketable limit, at the ask for a buy, but never past preflight's
+      `entry_cap` (for a fund, its `limit cap`, from `--quote`): the price where reward:risk falls to 1.5. If
+      the ask is already past the cap, the move is gone: `skip`, and keep the watch for a retest. Unfilled
+      after about 5 minutes: cancel it, don't chase. Options stay at the mid (their spreads cost far more).
    4. **As soon as it fills, place the protective order (GTC):**
       - shares: `stop_market` sell at the plan's stop (whole shares; Robinhood only allows market orders
         for fractional shares, so fractional positions rely on the exit check instead). A leveraged fund's
