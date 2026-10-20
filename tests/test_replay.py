@@ -53,6 +53,23 @@ class Simulate(unittest.TestCase):
         out = run([(60.5, 60.6, 59.6, 59.8, 300), (59.8, 62.5, 59.7, 62.2, 300)])
         self.assertTrue(out["reclaim"].startswith("skip: R:R 0.67"))  # 2.8 to go vs 4.2 at risk
 
+    def test_lower_reward_risk_floor(self):
+        out = run([(60.5, 60.6, 59.6, 59.8, 300), (59.8, 61.1, 59.7, 61, 300)])
+        self.assertTrue(out["reclaim"].startswith("skip: R:R 1.33"))  # 4 to go vs 3 at risk
+        self.assertEqual(out["reclaim-rr1.2"]["entry"], 61)
+
+    def test_near_touch_must_clear_the_zone(self):
+        # Friday's range is 0.7, so the zone is 60 + 0.7/4 = 60.175: 60.1 is a touch, 60.15 doesn't clear it
+        out = run([(60.5, 60.6, 60.1, 60.15, 300), (60.15, 60.5, 60.12, 60.4, 300)])
+        self.assertEqual(out["reclaim"], "skip: never touched his level")
+        self.assertEqual(out["reclaim-near"]["entry"], 60.4)
+        out = run([(60.5, 60.6, 60.3, 60.4, 300)])
+        self.assertEqual(out["reclaim-near"], "skip: never touched his level")  # 60.3 is outside the zone
+
+    def test_daily_atr(self):
+        self.assertAlmostEqual(replay.daily_atr(HISTORY + session(MON, [(60, 70, 50, 60, 1)]), MON.date()), 0.7)
+        self.assertIsNone(replay.daily_atr(HISTORY, HISTORY[0]["start"].date()))
+
     def test_never_touched(self):
         self.assertEqual(run([(61, 62, 60.5, 61.5, 300)])["dip"], "skip: never touched his level")
 

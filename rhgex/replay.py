@@ -7,6 +7,9 @@
 - **reclaim:** the CLAUDE.md rule: after a touch, a 15-minute close back above the level on above-average volume
   by 15:30 ET, without trading through the call's invalidation first; R:R >= 1.5 from the entry; sold by 15:45 ET
 - **reclaim-held:** the same entry, held until the stop, the target or the call's deadline
+- **reclaim-rr1.2:** what-if, not a live rule: the reclaim with a 1.2 R:R floor instead of 1.5
+- **reclaim-near:** what-if, not a live rule: a dip to within a quarter of the daily ATR above his level counts as
+  the touch. If price never went below the level, the confirming close must clear that zone (level + ATR/4)
 
 The stop is the call's invalidation (`invalid_from` says whether it's his or the half-ATR one), the target his.
 Sizing is the real one (5% risk, capped by the per-order limit), so results are in dollars and in R. Each trade
@@ -25,7 +28,8 @@ from .monitor import ET, hhmm
 
 MARKET = "SPY"
 SAME_DAY_EXIT, RECLAIM_BY, VOLUME_BARS = "15:45", "15:30", 20
-VARIANTS = ("dip", "reclaim", "reclaim-held")
+VARIANTS = ("dip", "reclaim", "reclaim-held", "reclaim-rr1.2", "reclaim-near")
+RELAXED_RR, NEAR_ATR, ATR_DAYS = 1.2, 0.25, 14  # what-ifs: a lower R:R floor; how close to his level is a touch
 
 
 def _end(b: dict) -> datetime:
@@ -73,6 +77,37 @@ def _trade(bars, i, entry, stop, target, held, deadline, account, max_cost, spy)
             "r": round((x - entry) / (entry - stop), 2), "market_pct": market_move(spy, bars[i]["start"])}
 
 
+def daily_atr(bars: list[dict], before: date) -> float | None:
+    """The average true range of up to ATR_DAYS sessions before `before`, built from the 15-minute bars."""
+    days: dict[date, list[dict]] = {}
+    for b in bars:
+        if b["start"].date() < before:
+            days.setdefault(b["start"].date(), []).append(b)
+    daily = [(max(x["high"] for x in d), min(x["low"] for x in d), d[-1]["close"]) for _, d in sorted(days.items())]
+    tr = [h - lo if i == 0 else max(h - lo, abs(h - daily[i - 1][2]), abs(lo - daily[i - 1][2]))
+          for i, (h, lo, _) in enumerate(daily)][-ATR_DAYS:]
+    return sum(tr) / len(tr) if tr else None
+
+
+def find_reclaim(bars, live, touch, level, stop, target, min_rr, clear=None):
+    """The confirmed reclaim after a touch: (bar index, None), or (None, why it's skipped). Until price has traded
+    at or below the level, a confirming close must beat `clear` (default: the level itself)."""
+    dipped = False
+    for k in (i for i in live if i >= touch):
+        b = bars[k]
+        if b["low"] <= stop:
+            return None, "skip: traded through the stop first"
+        dipped = dipped or b["low"] <= level
+        before = bars[max(0, k - VOLUME_BARS):k]
+        if (b["close"] > (level if dipped or clear is None else clear) and len(before) == VOLUME_BARS
+                and hhmm(_end(b)) <= RECLAIM_BY
+                and b["volume"] > sum(x["volume"] for x in before) / VOLUME_BARS):
+            if (rr := (target - b["close"]) / (b["close"] - stop)) < min_rr:
+                return None, f"skip: R:R {rr:.2f} at {b['start'].strftime('%a %H:%M')}"
+            return k, None
+    return None, "skip: no confirmed reclaim"
+
+
 def simulate(call: dict, bars: list[dict], spy: list[dict], account: float, max_order_pct: float = 75) -> dict:
     """Every variant for one bullish call. bars: 15-minute regular-hours bars (start tz-aware, open/high/low/
     close/volume), oldest first, including at least VOLUME_BARS before the post."""
@@ -81,6 +116,16 @@ def simulate(call: dict, bars: list[dict], spy: list[dict], account: float, max_
     t0 = posted_time(call)
     live = [i for i, b in enumerate(bars) if _end(b) > t0 and b["start"].date() <= deadline]
     out = {v: "skip: never touched his level" for v in VARIANTS}
+
+    def same_day(k):
+        return _trade(bars, k, bars[k]["close"], stop, target, False, deadline, account, max_cost, spy)
+
+    if not (atr := daily_atr(bars, t0.date())):
+        out["reclaim-near"] = "skip: no ATR"
+    elif (near := next((i for i in live if bars[i]["low"] <= level + NEAR_ATR * atr), None)) is not None:
+        k, why = find_reclaim(bars, live, near, level, stop, target, exits.MIN_REWARD_RISK,
+                              clear=level + NEAR_ATR * atr)
+        out["reclaim-near"] = why or same_day(k)
     touch = next((i for i in live if bars[i]["low"] <= level), None)
     if touch is None:
         return out
@@ -100,23 +145,12 @@ def simulate(call: dict, bars: list[dict], spy: list[dict], account: float, max_
                       "market_pct": market_move(spy, tb["start"])}
     else:
         out["dip"] = _trade(bars, touch, entry, stop, target, False, deadline, account, max_cost, spy)
-    for k in (i for i in live if i >= touch):
-        b = bars[k]
-        if b["low"] <= stop:
-            out["reclaim"] = out["reclaim-held"] = "skip: traded through the stop first"
-            break
-        before = bars[max(0, k - VOLUME_BARS):k]
-        if (b["close"] > level and len(before) == VOLUME_BARS and hhmm(_end(b)) <= RECLAIM_BY
-                and b["volume"] > sum(x["volume"] for x in before) / VOLUME_BARS):
-            e = b["close"]
-            if (rr := (target - e) / (e - stop)) < exits.MIN_REWARD_RISK:
-                out["reclaim"] = out["reclaim-held"] = f"skip: R:R {rr:.2f} at {b['start'].strftime('%a %H:%M')}"
-            else:
-                for v, held in (("reclaim", False), ("reclaim-held", True)):
-                    out[v] = _trade(bars, k, e, stop, target, held, deadline, account, max_cost, spy)
-            break
-    else:
-        out["reclaim"] = out["reclaim-held"] = "skip: no confirmed reclaim"
+    k, why = find_reclaim(bars, live, touch, level, stop, target, exits.MIN_REWARD_RISK)
+    out["reclaim"] = why or same_day(k)
+    out["reclaim-held"] = why or _trade(bars, k, bars[k]["close"], stop, target, True, deadline, account, max_cost,
+                                        spy)
+    k, why = find_reclaim(bars, live, touch, level, stop, target, RELAXED_RR)
+    out["reclaim-rr1.2"] = why or same_day(k)
     return out
 
 

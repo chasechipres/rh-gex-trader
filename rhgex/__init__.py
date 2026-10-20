@@ -9,7 +9,7 @@
   watch     price triggers for journaled watches, checked every exit check
   monitor   the watcher: polls quotes between exit checks and exits when a level is crossed
   calls     the source's calls, scored: hit rate by setup type
-  replay    the source's dip calls on 15-minute bars: dip-buy vs reclaim vs reclaim held
+  replay    the source's dip calls on 15-minute bars: dip-buy vs reclaim vs reclaim held, plus what-ifs
   journal   log a trade thesis or decision to private/logs/journal.jsonl
   record    track record: live realized P/L and win rate by confidence (--readme updates private/README.md)
   preflight pre-trade checklist: every mechanical entry rule, before plan add
@@ -525,7 +525,7 @@ def main() -> None:
     trg.add_argument("--above", type=float, help="conditional call: scored only once price trades above this")
     trg.add_argument("--below", type=float, help="conditional call: scored only once price trades below this")
 
-    rp = sub.add_parser("replay", help="the source's dip calls on 15-minute bars: dip-buy vs reclaim vs reclaim held")
+    rp = sub.add_parser("replay", help="the source's dip calls on 15-minute bars: dip-buy vs reclaim vs reclaim held, plus what-ifs")
     rp.add_argument("--account", type=float, required=True, help="account value for sizing (get_portfolio)")
     rp.add_argument("--since", help="first post date YYYY-MM-DD (default: every logged call)")
     rp.add_argument("--until", help="last post date YYYY-MM-DD")
