@@ -13,7 +13,7 @@ The commands, a normal day, more than one machine, your track record, and fixes 
 | `/trading-day` | Starts the day: same as the line below |
 | `run a trading cycle per CLAUDE.md` | Full cycle: exits, new posts, research, trades; schedules the rest of the day |
 | `run an exit check per CLAUDE.md` | Exits only: quick and cheap |
-| `/loop run an exit check per CLAUDE.md` | Self-paced exit checks: the watcher (`rhgex monitor`) wakes it when a level is crossed, plus a heartbeat of 15 min (options, spreads, no resting stop), 30 min (shares with stops) or 60 min (only watches, or nothing) |
+| `/loop run an exit check per CLAUDE.md` | Self-paced exit checks: the watcher (`rhgex monitor`) wakes it when a level is crossed, plus a heartbeat of 15 min (options, spreads, no resting stop), 30 min (shares with stops) or 60 min (only watches, or nothing; 30 min before 15:30 ET so it reads his new posts) |
 
 **A day:** type `/trading-day` around 10:15am ET. It schedules cycles at about 12:30 and 3:00pm ET (when the
 source posts most) plus the exit loop, which stops after the close and schedules tomorrow's 10:13am cycle. Leave

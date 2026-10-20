@@ -130,7 +130,7 @@ account value, earnings and expiry dates, a fading thesis. The heartbeat scales 
 |---|---|---|
 | Options, spreads, fractional shares, anything without a resting stop | 15 min | The check is their stop, or it needs Robinhood data |
 | Shares or 2x funds with resting stops | 30 min | The broker's stop protects them; the watcher catches the levels |
-| Only watches, or nothing | 60 min | The watcher catches triggers within about a minute |
+| Only watches, or nothing | 60 min (30 before 15:30 ET) | The watcher catches triggers within about a minute; the 30-minute cap is for reading his new posts |
 
 Its quotes come from Yahoo (a script can't call Robinhood) and can lag, so an event is a reason to look, never a
 trade: every action is confirmed on a Robinhood quote first. If quotes stop, it says so (`FEED_DOWN`) and the

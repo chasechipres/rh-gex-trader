@@ -77,9 +77,9 @@ assumption. Use it to cross-check the source's levels, not to replace them.
 
 Run this first in every cycle. It's also a cycle on its own: "run an exit check per CLAUDE.md".
 
-Keep looped exit checks cheap: don't read X or run research in them (a triggered watch is the one
-exception, step 1). If there are no positions, no open orders, no open plans and no open watches, say so in
-one line and stop (after steps 5 and 6, if they apply).
+Keep looped exit checks cheap: no research in them, except for a triggered watch (step 1) or a new post
+(step 7). If there are no positions, no open orders, no open plans and no open watches, say so in one line,
+run the post check (step 7) and stop (after steps 5 and 6, if they apply).
 
 1. `git pull` (code and rules), then `uv sync` (dependencies), and `rhgex sync --pull` first: exit plans
    (`private/state/plans.json`), watches, his scored calls and the order ledger are synced, and another machine
@@ -177,7 +177,8 @@ one line and stop (after steps 5 and 6, if they apply).
        unfilled opening order: the exit check is their only stop, or it needs Robinhood data.
      - **30 min:** only shares or leveraged funds, each with a working resting stop (the broker's stop protects
        them; the watcher catches stop, target and 1R crosses in between).
-     - **60 min:** only watches, or nothing open.
+     - **60 min:** only watches, or nothing open. Before 15:30 ET, cap it at **30 min** so the post check
+       (step 7) reads his posts every half hour.
    - **Watcher:** when any watch or plan is open, start `uv run python -m rhgex monitor --minutes <heartbeat>`
      (`--close 13:00` on early-close days) with Bash `run_in_background`, and also call `ScheduleWakeup` with
      the prompt `run an exit check per CLAUDE.md` and `delaySeconds` of the heartbeat plus 5 minutes, as a
@@ -192,13 +193,20 @@ one line and stop (after steps 5 and 6, if they apply).
        watcher; try the watcher again at the next check.
      - **`IDLE`:** nothing to watch; pace with `ScheduleWakeup` at the heartbeat. **`CLOSED`:** step 5.
      Each event fires once per level and day, so a target you've handled won't wake you again.
-   - **Nothing open:** no watcher; `ScheduleWakeup` at 3600.
+   - **Nothing open:** no watcher; `ScheduleWakeup` at 1800 before 15:30 ET (the post check), else 3600.
    With a `[reclaim]` position open, make sure one check lands between 15:45 and 15:50 ET (the watcher's
    `SAME_DAY_EXIT` does it; without the watcher, shorten the delay).
    Never let the wakeup land later than about 16:05 ET; shorten the delay so one check runs just after the
    close and ends the loop (step 5). Set `noop: true` when the check changed nothing.
    **Early-close days** (the market closes at 13:00 ET, e.g. the day after Thanksgiving and Christmas Eve):
    treat 13:00 as the close everywhere: the last check runs just after 13:00 and ends the loop.
+7. **Post check** (looped exit checks from 9:35 to 15:30 ET; 12:30 on early-close days): his setups can come
+   and go between full cycles, so read his new posts here too. Skip it when this check was woken by a watcher
+   event (act on the event first; the next heartbeat reads posts) or when X was read in the last 25 minutes.
+   Run full-cycle step 2 (collect, save the notes; the same logged-out handling), and for each new post that
+   names a tradable idea, steps 3 (`calls add`) and 5-8 for that symbol alone: research, decide, journal,
+   `watch add` or enter, with the session lock (taken as in full-cycle step 1; refused means watch-only). A
+   post with nothing tradable just gets its note. No new posts: one line, nothing else.
 
 ## Full cycle
 
@@ -435,8 +443,8 @@ one line and stop (after steps 5 and 6, if they apply).
 ## Running it
 
 Three full cycles a day (10:13, 12:33 and 15:03 ET; the user starts the first, the rest schedule themselves in
-step 10) plus the self-paced exit loop, which ends itself after the close and schedules the next morning. Don't
-add cycles on your own. Scheduled jobs live only in the open session (closing it or the computer sleeping drops
+step 10) plus the self-paced exit loop, which reads his new posts about every 30 minutes (exit-check step 7),
+ends itself after the close and schedules the next morning. Don't add cycles on your own. Scheduled jobs live only in the open session (closing it or the computer sleeping drops
 them), so when none is running only the resting
 stop orders protect positions: never leave a position without one.
 
