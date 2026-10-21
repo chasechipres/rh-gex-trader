@@ -24,6 +24,15 @@ instructions follow, and they win over this file where the two differ:
 
 - **Autonomy:** place orders without asking only if `private/CLAUDE.md` grants it. Without a grant, ask the
   user before each order.
+- **Order not placed (handoff):** with a grant, attempt every order the rules call for. If it isn't placed
+  (the session declines to place it, or the tool is unavailable or refuses it for a reason other than the
+  hook or a guardrail), don't drop the trade: `PushNotification` the user the ready order in one line
+  (symbol, side, quantity, order type, limit or stop price, and the plan's stop and target) and ask them to
+  place it. Keep the plan open. Once the position shows up in `get_equity_positions` /
+  `get_option_positions`, manage it like any other: exit checks, stops and targets still run, and stops and
+  exits that can't be placed are handed off the same way. If it hasn't shown up by the next check, re-send
+  the order once if it still clears preflight; otherwise `plan close` it ("handed off, not placed") and
+  journal a `skip`. A hook denial is not a handoff: accept it.
 - **Not set up?** If `private/guardrails.toml` is missing, the hook refuses every order. Run
   `rhgex init --check`, tell the user what's missing, and suggest `/setup`, which walks them
   through it. Don't run `rhgex init --github` yourself: creating a GitHub repo is the user's call.
@@ -473,7 +482,7 @@ accepted, comment on the issue and tell the user, so this note can be removed.
   that track the same index.
 - **Notify the user** with `PushNotification` (one line, no markdown) on real events only: an entry fills, a
   stop-out or exit (with its P/L), a profit-take, the daily loss stop or drawdown pause trips, the session
-  lock is refused, Robinhood fails, or X is logged out (or Chrome is unreachable) so posts can't be read. Never for routine checks that changed nothing.
+  lock is refused, an order is handed off to the user to place, Robinhood fails, or X is logged out (or Chrome is unreachable) so posts can't be read. Never for routine checks that changed nothing.
 - Commit `private/` only with `rhgex sync`; its `.gitignore` keeps `state/account.json` and other local files
   out. Nothing personal goes in the public repo. The pre-commit hook scans both repos for secrets; don't skip
   it with `--no-verify`. If a sync's pull conflicts, stop and ask the user; don't hand-merge `private/state/`.
