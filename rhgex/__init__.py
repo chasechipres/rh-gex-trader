@@ -263,7 +263,8 @@ def cmd_watch(args) -> None:
         elif args.action == "close":
             out(watches.close(args.symbol, args.reason))
         elif args.action == "check":
-            out(watches.check(dict((k, float(v)) for k, v in (p.split("=") for p in args.price))))
+            from .monitor import yahoo_bars
+            out(watches.check(dict((k, float(v)) for k, v in (p.split("=") for p in args.price)), bars=yahoo_bars))
         else:
             out(watches.open_watches(watches.load()))
     except ValueError as e:

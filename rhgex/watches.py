@@ -8,8 +8,10 @@ price, so a trigger that fires is already worth researching.
 
 A reclaim watch (`--reclaim`) is for buying back above one of his dip levels: `rhgex monitor` fires it only on a
 completed 15-minute close above the level on above-average volume after price touched it, and drops it if price
-trades through the stop first. `watch check` (Robinhood prices, no bars) still reports it TRIGGERED on price, with
-`confirm: reclaim`, so the exit check knows to look at the 15-minute bars before entering.
+trades through the stop first. `watch check` reports it from the same 15-minute bars (Yahoo's, from the CLI) and the
+Robinhood price: WAITING until price has traded at or below the level since the watch opened, RECLAIM_PENDING once it
+has but no bar has confirmed it, RECLAIM_CONFIRMED (check the bar's volume on Robinhood before entering) or
+RECLAIM_INVALIDATED. It is never TRIGGERED on price alone.
 """
 
 import json
@@ -100,20 +102,39 @@ def evaluate(w: dict, price: float | None, today: date) -> str:
     return "TRIGGERED" if hit else "WAITING"
 
 
-def check(prices: dict[str, float], today: date | None = None, path: Path = WATCHES) -> list[dict]:
-    """Every open watch against prices. Expired ones are closed here, so the list only shrinks on its own."""
+def reclaim_state(w: dict, price: float | None, bars: list[dict], now: datetime) -> tuple[str, dict]:
+    """A reclaim watch's state from its 15-minute bars and the live price (which can show a touch or a stop the
+    bars haven't closed yet)."""
+    from . import monitor
+
+    state, info = monitor.reclaim_status(w, bars, now)
+    if price is not None and price <= w["stop"]:
+        return "RECLAIM_INVALIDATED", {}
+    if state == "WAITING" and price is not None and price <= w["level"]:
+        state = "PENDING"
+    return (state if state == "WAITING" else f"RECLAIM_{state}"), info
+
+
+def check(prices: dict[str, float], today: date | None = None, path: Path = WATCHES, bars=lambda symbol: [],
+          now: datetime | None = None) -> list[dict]:
+    """Every open watch against prices. Expired ones are closed here, so the list only shrinks on its own.
+    bars(symbol): 15-minute bars for reclaim watches (the CLI passes Yahoo's); without them a reclaim watch is
+    WAITING until the price itself is at or below the level."""
     today = today or date.today()
+    now = now or datetime.now().astimezone()
     prices = {k.upper(): v for k, v in prices.items()}
     watches = load(path)
     report = []
     for w in open_watches(watches):
         px = prices.get(w["symbol"])
-        state = evaluate(w, px, today)
+        state, info = evaluate(w, px, today), {}
+        if w.get("confirm") == "reclaim" and state not in ("EXPIRED", "NO_PRICE"):
+            state, info = reclaim_state(w, px, bars(w["symbol"]), now)
         if state == "EXPIRED":
             w.update(status="expired", closed=datetime.now().isoformat(timespec="seconds"))
         report.append({"symbol": w["symbol"], "trigger": f"{w['side']} {w['level']:g}", "price": px,
                        "until": w["until"], "state": state, "note": w["note"]}
-                      | ({"confirm": "reclaim", "stop": w["stop"]} if w.get("confirm") == "reclaim" else {}))
+                      | ({"confirm": "reclaim", "stop": w["stop"]} | info if w.get("confirm") == "reclaim" else {}))
     if any(r["state"] == "EXPIRED" for r in report):
         save(watches, path)
     return report

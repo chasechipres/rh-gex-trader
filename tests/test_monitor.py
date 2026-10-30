@@ -173,8 +173,30 @@ class Reclaim(Base):
             self.watch("CRWV", "below", 60, "", stop=62, target=55, reclaim=True)
         with self.assertRaises(ValueError):
             self.watch("CRWV", "above", 60, "", reclaim=True)
-        r = watches.check({"CRWV": 60.5}, MON.date(), self.watches)[0]
-        self.assertEqual((r["state"], r["confirm"], r["stop"]), ("TRIGGERED", "reclaim", 58))
+        r = watches.check({"CRWV": 60.5}, MON.date(), self.watches)[0]  # above the level, never dipped: no signal
+        self.assertEqual((r["state"], r["confirm"], r["stop"]), ("WAITING", "reclaim", 58))
+
+    def test_watch_check_states(self):
+        def state(px, bars, minutes=30):
+            return watches.check({"CRWV": px}, MON.date(), self.watches, bars=bars,
+                                 now=self.open + timedelta(minutes=minutes))[0]["state"]
+        self.assertEqual(state(61, self.bars((60.3, 60.8, 300), (60.5, 61, 300))), "WAITING")  # stayed above 60
+        self.assertEqual(state(59.8, self.bars()), "RECLAIM_PENDING")  # the price itself is at the level
+        self.assertEqual(state(60.2, self.bars((59.6, 59.9, 300), (59.8, 60.1, 90))), "RECLAIM_PENDING")  # thin
+        self.assertEqual(state(60.5, self.bars((59.6, 59.9, 300), (59.8, 60.4, 250))), "RECLAIM_CONFIRMED")
+        self.assertEqual(state(57.9, self.bars()), "RECLAIM_INVALIDATED")
+
+    def test_outlier_volume_does_not_confirm(self):
+        # one bar at ~25x the average (Yahoo's bad print): not a confirmation, the next normal bar is
+        now = self.open + timedelta(minutes=30)
+        b = self.bars((59.6, 59.9, 300), (59.8, 60.4, 2500))
+        state, info = monitor.reclaim_status(self.w, b("X"), now)
+        self.assertEqual((state, info["suspect_volume"]), ("PENDING", True))
+        state, _ = self.run_monitor({"CRWV": 60.5}, start=now, bars=b)
+        self.assertEqual(state, "HEARTBEAT")
+        b = self.bars((59.6, 59.9, 300), (59.8, 60.4, 2500), (60.1, 60.5, 300))
+        state, info = monitor.reclaim_status(self.w, b("X"), now + timedelta(minutes=15))
+        self.assertEqual((state, info["bar_volume"]), ("CONFIRMED", 300))
 
 
 if __name__ == "__main__":

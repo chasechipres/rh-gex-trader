@@ -69,7 +69,7 @@ uv run python -m rhgex plan raise-stop TICKER --stop PX          # tighten the u
 uv run python -m rhgex plan close TICKER --reason "..."          # after the position is fully closed
 uv run python -m rhgex plan list
 uv run python -m rhgex watch add TICKER --above|--below PX --stop PX --target PX --note "..." --source URL [--until YYYY-MM-DD] [--reclaim]  # refuses R:R < 1.5 from the trigger
-uv run python -m rhgex watch check --price TICKER=PX ...         # open triggers vs price: TRIGGERED/WAITING/EXPIRED
+uv run python -m rhgex watch check --price TICKER=PX ...         # open triggers vs price: TRIGGERED/WAITING/EXPIRED (reclaims: RECLAIM_PENDING/CONFIRMED/INVALIDATED)
 uv run python -m rhgex watch close TICKER --reason "..."         # entered, skipped or the setup died
 uv run python -m rhgex monitor --minutes 60 [--close 13:00]      # the watcher: polls quotes, exits on a level cross or the heartbeat
 uv run python -m rhgex monitor --stats [--since YYYY-MM-DD]      # watcher runs and events per day vs a 15-minute loop
@@ -105,9 +105,10 @@ run the post check (step 7) and stop (after steps 5 and 6, if they apply).
    **Watches:** also quote every symbol in `watch list` and run `watch check --price SYM=PX ...`. A
    `TRIGGERED` watch is a candidate now: before 15:50 ET (and with the session lock), run full-cycle steps
    5-8 for that symbol alone (research, decide, journal, enter), then `watch close` it either way. This is the
-   only part of an exit check that may run research. A reclaim watch (`confirm: reclaim`) is a candidate only
-   once its 15-minute bars confirm it (full-cycle step 6, reclaims); until then it keeps waiting. `EXPIRED`
-   watches close themselves.
+   only part of an exit check that may run research. A reclaim watch (`confirm: reclaim`) is never
+   `TRIGGERED`: it's `WAITING` until price has traded at or below his level, `RECLAIM_PENDING` once it has,
+   and a candidate only at `RECLAIM_CONFIRMED` (full-cycle step 6, reclaims). `RECLAIM_INVALIDATED` closes it
+   (`watch close`). `EXPIRED` watches close themselves.
 2. Run `exits --price SYM=PX ...` with those quotes. When several signals or rules apply to one position,
    act in this order, and when two conflict take the more protective one: **stop hit > EXPIRING or
    EARNINGS_SOON > TIME_STOP > fading thesis > target or +100% (sell half) > trailing**. For each plan:
@@ -347,8 +348,10 @@ run the post check (step 7) and stop (after steps 5 and 6, if they apply).
        none, half the daily ATR below his level (the `invalid` that `calls add` logged for it). Set it when the
        watch is added, before price gets there, and never move it down; name it in the thesis (`stop: his` or
        `stop: atr`)
-     - a 15-minute bar then closed back above the level on volume above its 20-bar average
-       (`get_equity_historicals` with 15-minute bars), by 15:30 ET
+     - a 15-minute bar then closed back above the level on volume above its 20-bar average, by 15:30 ET.
+       The watcher reads Yahoo's bars, which can carry a bad volume print, so confirm the bar's volume on
+       Robinhood before entering: `get_equity_historicals` with `5minute` bars (it refuses 15-minute ones),
+       summed into 15-minute bars. The event's `bar_volume` and `avg_volume` are Yahoo's numbers to compare
      The stop is that price, not the swept low (wicks stop out a tighter one); the target is his next
      level up; reward:risk at least 1.5 from the entry price, with normal 5% sizing. **Vehicle: shares**, or the
      stock's 2x fund when shares would be capped below the 5% risk (leveraged-fund rules; thesis
