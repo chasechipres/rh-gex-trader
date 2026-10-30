@@ -5,7 +5,9 @@ printing one JSON line per event:
 
 - WATCH_TRIGGERED: an open watch's trigger is crossed (the same test as `watch check`)
 - RECLAIM_CONFIRMED / RECLAIM_INVALIDATED: a reclaim watch (`watch add --reclaim`) got its 15-minute close back
-  above the level on above-average volume after touching it, or traded through its stop first
+  above the level on above-average volume after touching it, or traded through its stop first. A bar over 10x
+  the average volume is a suspect print and doesn't confirm; the event carries the bar's volume and the average,
+  so the exit check can compare them with Robinhood's bars
 - STOP_HIT, TARGET_HIT, AT_1R: an open plan's level, on the underlying (a leveraged fund is tracked on its stock)
 - SAME_DAY_EXIT: a `[reclaim]` position is still open at 15:45 ET
 
@@ -37,6 +39,7 @@ OPEN, SAME_DAY_EXIT_AT, RECLAIM_BY = "09:30", "15:45", "15:30"  # ET; a reclaim 
 STALE_QUOTE_MIN = 10  # a quote older than this during regular hours counts as missing
 FEED_DOWN_POLLS = 5  # consecutive polls with a symbol unpriced before the watcher gives up
 VOLUME_BARS = 20  # a reclaim bar's volume must beat the average of the bars before it
+VOLUME_OUTLIER = 10  # ...but a bar over 10x that average is a suspect print, not a confirmation
 PLAN_SIGNALS = ("STOP_HIT", "TARGET_HIT", "AT_1R")
 
 
@@ -57,24 +60,37 @@ def symbols(open_watches: list[dict], open_plans: list[dict]) -> list[str]:
     return sorted({w["symbol"] for w in open_watches} | {quoted_symbol(p) for p in open_plans})
 
 
-def reclaim(w: dict, bars: list[dict], now: datetime) -> str | None:
-    """CONFIRMED, INVALIDATED or None for a reclaim watch, from 15-minute bars (dicts with start, low, close,
-    volume; start tz-aware). Only bars since the watch opened count, and only completed ones."""
+def reclaim_status(w: dict, bars: list[dict], now: datetime) -> tuple[str, dict]:
+    """WAITING (no touch yet), PENDING (touched, no confirming close), CONFIRMED or INVALIDATED for a reclaim watch,
+    from 15-minute bars (dicts with start, low, close, volume; start tz-aware), plus the last bar's volume and the
+    20-bar average when they were compared. Only bars since the watch opened count, and only completed ones. A bar
+    with more than VOLUME_OUTLIER x the average is a suspect print (Yahoo has posted 25x bars): it doesn't confirm."""
     opened = datetime.fromisoformat(w["opened"])
     opened = opened.astimezone(ET) if opened.tzinfo is None else opened  # naive = this machine's local time
     done = [b for b in bars if b["start"] + timedelta(minutes=15) <= now]
     since = [b for b in done if b["start"] + timedelta(minutes=15) > opened]
     if not since:
-        return None
+        return "WAITING", {}
     if min(b["low"] for b in since) <= w["stop"]:
-        return "INVALIDATED"
+        return "INVALIDATED", {}
     touch = next((i for i, b in enumerate(since) if b["low"] <= w["level"]), None)
+    if touch is None:
+        return "WAITING", {}
     last = since[-1]
     before = done[-1 - VOLUME_BARS:-1]
-    if touch is None or len(before) < VOLUME_BARS or hhmm(last["start"] + timedelta(minutes=15)) > RECLAIM_BY:
-        return None
+    if len(before) < VOLUME_BARS or hhmm(last["start"] + timedelta(minutes=15)) > RECLAIM_BY:
+        return "PENDING", {}
     avg = sum(b["volume"] for b in before) / len(before)
-    return "CONFIRMED" if last["close"] > w["level"] and last["volume"] > avg else None
+    info = {"bar_volume": round(last["volume"]), "avg_volume": round(avg)}
+    if last["close"] > w["level"] and avg < last["volume"] <= VOLUME_OUTLIER * avg:
+        return "CONFIRMED", info
+    return "PENDING", info | ({"suspect_volume": True} if last["volume"] > VOLUME_OUTLIER * avg else {})
+
+
+def reclaim(w: dict, bars: list[dict], now: datetime) -> str | None:
+    """CONFIRMED, INVALIDATED or None (still waiting) for a reclaim watch: reclaim_status without the detail."""
+    state = reclaim_status(w, bars, now)[0]
+    return state if state in ("CONFIRMED", "INVALIDATED") else None
 
 
 def events(open_watches: list[dict], open_plans: list[dict], prices: dict[str, float], now: datetime,
@@ -84,12 +100,12 @@ def events(open_watches: list[dict], open_plans: list[dict], prices: dict[str, f
     for w in open_watches:
         px = prices.get(w["symbol"])
         if w.get("confirm") == "reclaim":
-            state = reclaim(w, bars(w["symbol"]), now)
-            if state is None and px is not None and px <= w["stop"]:
-                state = "INVALIDATED"
-            if state:
+            state, info = reclaim_status(w, bars(w["symbol"]), now)
+            if state != "INVALIDATED" and px is not None and px <= w["stop"]:
+                state, info = "INVALIDATED", {}
+            if state in ("CONFIRMED", "INVALIDATED"):
                 out.append({"event": f"RECLAIM_{state}", "symbol": w["symbol"], "level": w["level"], "price": px,
-                            "stop": w["stop"], "target": w.get("target"), "note": w["note"]})
+                            "stop": w["stop"], "target": w.get("target"), "note": w["note"]} | info)
         elif watches.evaluate(w, px, now.astimezone(ET).date()) == "TRIGGERED":
             out.append({"event": "WATCH_TRIGGERED", "symbol": w["symbol"], "level": w["level"], "price": px,
                         "note": w["note"]})
