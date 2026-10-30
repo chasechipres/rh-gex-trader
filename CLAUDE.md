@@ -293,7 +293,7 @@ run the post check (step 7) and stop (after steps 5 and 6, if they apply).
      capped below the 5% risk (`size` reports `capped_by`), buy a 2x fund instead of the stock: the same risk
      fits in half the cash. When plain shares already take the full 5% under the cap, buy the stock; a fund
      would add gap risk and decay for nothing.
-     - **Bearish reads** (the breakdown trial included) buy a listed **inverse** fund (2x like NVD, or a 1x
+     - **Bearish reads** (breakdowns included) buy a listed **inverse** fund (2x like NVD, or a 1x
        bear fund like METD), since the account can't short. Its plan is `--direction bearish` on the stock's
        levels, and `lev` turns the stock's stop above into the fund's stop below.
      - **Plan, preflight and the exit check stay on the stock's levels** (`plan add NVDL ... --price <NVDA>`,
@@ -325,7 +325,7 @@ run the post check (step 7) and stop (after steps 5 and 6, if they apply).
      and so on). An index position (SPX/XSP) counts toward every position betting the same direction.
    - **fresh posts only:** act only on posts from the last 2 trading days. An older setup is a `watch` until
      he posts on it again or today's gamma map still shows the same levels.
-   - **breakdowns count too (trial from 2026-10-15, reviewed by 2026-10-30):** when he names a level that
+   - **breakdowns count too:** when he names a level that
      must hold (a pivot, king or "last support") and price loses it, that's a bearish setup, not just a failed
      long. Trade it only when all of these hold:
      - it's still below the level at two checks in a row (a cycle and the next exit check)
@@ -333,11 +333,11 @@ run the post check (step 7) and stop (after steps 5 and 6, if they apply).
      - the trend is down or mixed
      Express it with a put or put vertical (`fit --direction bearish`), or, when neither fits, the stock's
      listed inverse fund (`lev TICKER`) under the leveraged-fund rules above (thesis
-     `[breakdown trial] [leveraged trial]`); no fund either: `skip`. The stop is just above the lost level
+     `[breakdown] [leveraged trial]`); no fund either: `skip`. The stop is just above the lost level
      (a reclaim means the thesis is wrong); the target is his next level down or the put wall. While price
-     still holds the level, a `watch` with its trigger `--below` the level catches the break. Start the journal
-     thesis with `[breakdown trial]` so the weekly review can score these separately: keep, change or drop
-     the rule after 10 of them or by 2026-10-30, whichever comes first.
+     still holds the level, a `watch` with its trigger `--below` the level catches the break. Reward:risk is at
+     least 1.5, like any entry. Start the journal thesis with `[breakdown]` so the weekly review can score
+     these separately.
    - **reclaims of his dip levels:** when he names a level to
      buy a dip at (a long-gamma floor, a king, "optimal entry") and the trend is against it, don't buy the level
      itself. Buy only a confirmed reclaim, which is what "a reversal confirmed by price and volume" means for

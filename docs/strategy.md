@@ -23,7 +23,7 @@ Every idea starts as one of his levels, then has to fit one of three playbooks. 
 |---|---|---|---|---|---|
 | **Swing with the trend** | His dip in an uptrend, or a breakout; trend, his thesis and the gamma read agree | At or near his level, or the trigger just past it | Where his thesis is wrong | Half at the target or +100%, trail the rest; time stop, expiry and earnings exits | Option that fits, else 2x fund if shares are capped, else shares |
 | **[Reclaim](#his-dip-levels-buy-the-reclaim)** | His dip level in a downtrend | Only after a 15-minute close back above it on volume | His invalidation, or half an ATR below his level | Target, stop, or **sold by 15:45 ET the same day** | Shares, or a 2x fund if capped; never options |
-| **Breakdown** (trial) | A "must hold" level lost, in negative gamma, still below it at two checks | After the second check | Just above the lost level | His next level down or the put wall | Put, else the stock's inverse fund |
+| **Breakdown** | A "must hold" level lost, in negative gamma, still below it at two checks | After the second check | Just above the lost level | His next level down or the put wall | Put, else the stock's inverse fund |
 
 All three need reward:risk of at least 1.5 from the entry and risk 5% of the account. The limits below
 (entries per day, open risk, theme, leveraged funds) apply across all of them.
@@ -143,7 +143,7 @@ Rules change only on evidence, and only by the owner's decision; Claude proposes
 | Evidence | Tool | What it answers |
 |---|---|---|
 | His calls, scored | `calls add` / `calls stats` | How often each kind of call he makes hits its target before its invalidation |
-| Tagged trades | `record`, the **By setup tag** table | How each playbook and trial actually did (`[reclaim]`, `[breakdown trial]`, `[leveraged trial]`, and reclaims by stop type) |
+| Tagged trades | `record`, the **By setup tag** table | How each playbook and trial actually did (`[reclaim]`, `[breakdown]`, `[leveraged trial]`, and reclaims by stop type) |
 | His dip calls, replayed | `replay` | Dip-buy vs reclaim vs reclaim held on 15-minute bars (plus what-ifs: a 1.2 R:R floor, a near touch), by stop type and by the market at entry: a bigger sample than live trades |
 | The watcher | `monitor --stats` | Wake-ups it caused vs a 15-minute loop, and which events fired |
 | Limits that bound | the journal's skips | Whether the entry cap, theme cap or Robinhood's spread refusal is costing trades |
