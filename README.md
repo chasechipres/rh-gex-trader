@@ -51,7 +51,7 @@ behind it. An idea becomes a trade only through one of three playbooks ([the why
 |---|---|---|---|
 | **Swing with the trend** | his dip in an uptrend, or a breakout, when his thesis, the trend and the gamma read agree | half at the target, trail the rest; days to two weeks | option, else 2x fund, else shares |
 | **Reclaim** | his dip level in a downtrend, only after a 15-minute close back above it on volume | target, stop, or sold by 15:45 ET the same day | shares (2x fund if capped) |
-| **Breakdown** (trial) | the downside, once a "must hold" level is lost in negative gamma and stays lost for two checks | his next level down | put, else inverse fund |
+| **Breakdown** | the downside, once a "must hold" level is lost in negative gamma and stays lost for two checks | his next level down | put, else inverse fund |
 
 Every trade risks 5% of the account and needs 1.5 reward:risk. Three cycles a day (about 10:15am, 12:30pm and
 3:00pm ET) read new posts and trade; between them, a watcher wakes Claude when a stop, target or trigger is
