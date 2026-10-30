@@ -15,6 +15,7 @@ trades through the trigger, and one that never triggers by its deadline is `not_
 """
 
 import json
+import math
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
@@ -54,8 +55,9 @@ def add(symbol: str, direction: str, setup: str, level: float, target: float, in
     bull = direction == "bullish"
     invalid_from = "his"
     if invalid is None:
-        if not atr or atr <= 0:
-            raise ValueError("no --invalid: the ATR stop needs the stock's daily ATR")
+        if atr is None or not math.isfinite(atr) or atr <= 0:
+            raise ValueError("no --invalid, and the stock's daily ATR couldn't be fetched for the ATR stop: "
+                             "pass --invalid")
         invalid, invalid_from = round(level - ATR_STOP * atr if bull else level + ATR_STOP * atr, 2), "atr"
     if (bull and not invalid < target) or (not bull and not invalid > target):
         raise ValueError(f"a {direction} call needs the invalidation {'below' if bull else 'above'} the target")
@@ -71,8 +73,8 @@ def add(symbol: str, direction: str, setup: str, level: float, target: float, in
     if by_d < posted_d:
         raise ValueError("--by is before the post date")
     calls = load(path)
-    if any(c["source"] == source and c["symbol"] == symbol.upper() for c in calls):
-        raise ValueError(f"{symbol.upper()} from this post is already logged")
+    if any(c["source"] == source and c["symbol"] == symbol.upper() and c["direction"] == direction for c in calls):
+        raise ValueError(f"a {direction} {symbol.upper()} call from this post is already logged")
     c = {"symbol": symbol.upper(), "direction": direction, "setup": setup, "level": level, "target": target,
          "invalid": invalid, "invalid_from": invalid_from, "posted": posted_d.isoformat(), "by": by_d.isoformat(), "source": source,
          "note": note, "result": "open", "logged": datetime.now().isoformat(timespec="seconds")}

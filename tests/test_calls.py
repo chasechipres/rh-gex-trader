@@ -37,6 +37,17 @@ class Calls(unittest.TestCase):
         self.assertEqual((c["invalid"], c["invalid_from"]), (65.0, "atr"))
         with self.assertRaises(ValueError):
             self.add(symbol="SMCI", invalid=None)  # no ATR to compute it from
+        with self.assertRaisesRegex(ValueError, "ATR couldn't be fetched"):  # Yahoo's NaN ATR, not a target error
+            self.add(symbol="SMCI", invalid=None, atr=float("nan"))
+
+    def test_both_sides_of_a_pivot_from_one_post(self):
+        # "hold 162 for 170, lose it for 155": one bullish and one bearish call from the same post
+        bull = self.add(symbol="NBIS", direction="bullish", setup="uptrend-dip", level=162, target=170, invalid=158,
+                        trigger=("above", 162.5))
+        bear = self.add(symbol="NBIS", level=162, target=155, invalid=165, trigger=("below", 161.5))
+        self.assertEqual((bull["direction"], bear["direction"]), ("bullish", "bearish"))
+        with self.assertRaisesRegex(ValueError, "already logged"):  # a true repeat is still refused
+            self.add(symbol="NBIS", level=162, target=155, invalid=165, trigger=("below", 161.5))
 
     def test_score(self):
         c = self.add()
