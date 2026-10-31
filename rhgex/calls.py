@@ -10,6 +10,11 @@ move made before he posted can't count for or against him.
 When he names no invalidation, the call gets one half the daily ATR past his level (ATR_STOP), the stop the
 reclaim rule uses, and `invalid_from: atr` says so; his own price is `invalid_from: his`.
 
+When he names a level and a direction but no target, the call can still be logged with the next gamma level in
+its favor (the call wall for a bullish call, the put wall for a bearish one) as the target, `target_from: gex`.
+These are tracked apart (`target: gex` in `stats`, a split in `replay`) to test whether our own targets work before
+any rule trades on them; his own target is `target_from: his`.
+
 A conditional call ("above 9.5, 10 is next") has a trigger: it's scored only from the session after price first
 trades through the trigger, and one that never triggers by its deadline is `not_triggered`, outside the hit rate.
 """
@@ -45,11 +50,13 @@ def save(calls: list[dict], path: Path = CALLS) -> None:
 
 def add(symbol: str, direction: str, setup: str, level: float, target: float, invalid: float | None, source: str,
         by: str | None = None, posted: str | None = None, note: str = "", path: Path = CALLS,
-        trigger: tuple[str, float] | None = None, atr: float | None = None) -> dict:
+        trigger: tuple[str, float] | None = None, atr: float | None = None, target_from: str = "his") -> dict:
     """posted: 'YYYY-MM-DD HH:MM' in this computer's local time (the post note's name), or a date alone for a
     post made before the open. Default: now. invalid None: he named none, so it's ATR_STOP x atr past the level."""
     if direction not in ("bullish", "bearish"):
         raise ValueError("direction must be bullish or bearish")
+    if target_from not in ("his", "gex"):
+        raise ValueError("target_from must be his or gex")
     if setup not in SETUPS:
         raise ValueError(f"setup must be one of {', '.join(SETUPS)}")
     bull = direction == "bullish"
@@ -76,7 +83,8 @@ def add(symbol: str, direction: str, setup: str, level: float, target: float, in
     if any(c["source"] == source and c["symbol"] == symbol.upper() and c["direction"] == direction for c in calls):
         raise ValueError(f"a {direction} {symbol.upper()} call from this post is already logged")
     c = {"symbol": symbol.upper(), "direction": direction, "setup": setup, "level": level, "target": target,
-         "invalid": invalid, "invalid_from": invalid_from, "posted": posted_d.isoformat(), "by": by_d.isoformat(), "source": source,
+         "invalid": invalid, "invalid_from": invalid_from,
+         "target_from": target_from, "posted": posted_d.isoformat(), "by": by_d.isoformat(), "source": source,
          "note": note, "result": "open", "logged": datetime.now().isoformat(timespec="seconds")}
     if posted_at:
         c["posted_at"] = posted_at.isoformat(timespec="minutes")
@@ -159,11 +167,12 @@ def check(today: date | None = None, path: Path = CALLS, bars=daily_bars, after=
 
 
 def stats(calls: list[dict]) -> dict:
-    """Hit rate by setup type and direction, over resolved calls (expired ones count as misses; calls whose
+    """Hit rate by setup type and direction (plus `target: gex` for calls whose target came from the gamma map), over resolved calls (expired ones count as misses; calls whose
     trigger never traded are counted apart and left out of the rate)."""
     out: dict[str, dict] = {}
     for c in calls:
-        for key in (c["setup"], f"all {c['direction']}"):
+        keys = (c["setup"], f"all {c['direction']}") + (("target: gex",) if c.get("target_from") == "gex" else ())
+        for key in keys:
             s = out.setdefault(key, {"hit": 0, "fail": 0, "expired": 0, "open": 0, "not_triggered": 0})
             s[c["result"]] += 1
     for s in out.values():

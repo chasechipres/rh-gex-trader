@@ -83,7 +83,7 @@ class Simulate(unittest.TestCase):
 
 class Run(unittest.TestCase):
     def test_filters_and_splits(self):
-        calls = [CALL, CALL | {"symbol": "ASTS", "invalid_from": "atr"},
+        calls = [CALL, CALL | {"symbol": "ASTS", "invalid_from": "atr", "target_from": "gex"},
                  CALL | {"symbol": "NVDA", "setup": "breakout"}, CALL | {"symbol": "SMCI", "direction": "bearish"}]
         rows = [(60.5, 60.6, 59.6, 59.8, 300), (59.8, 60.5, 59.7, 60.4, 300), (60.4, 65.2, 60.3, 65, 300)]
         fetch = lambda s: SPY if s == "SPY" else HISTORY + session(MON, rows)  # noqa: E731
@@ -91,6 +91,7 @@ class Run(unittest.TestCase):
         self.assertEqual([r["symbol"] for r in out["calls"]], ["CRWV", "ASTS"])
         s = out["summary"]["reclaim"]
         self.assertEqual((s["all"]["trades"], s["stop: his"]["trades"], s["stop: atr"]["trades"]), (2, 1, 1))
+        self.assertEqual((s["target: his"]["trades"], s["target: gex"]["trades"]), (1, 1))
         self.assertEqual((s["market up at entry"]["trades"], s["market down at entry"]["trades"]), (2, 0))
         self.assertEqual(s["all"]["net"], round(2 * 17 * 4.6, 2))
 
