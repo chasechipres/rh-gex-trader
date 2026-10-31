@@ -427,14 +427,16 @@ run the post check (step 7) and stop (after steps 5 and 6, if they apply).
 10. **Keep the schedule running:** check the session's scheduled jobs (`CronList`), then add whatever is
    missing. Never schedule a duplicate. Full cycles are one-shot `CronCreate` jobs (`recurring: false`,
    pinned to a date) with the prompt `run a trading cycle per CLAUDE.md`. Cron uses this computer's local time;
-   `private/CLAUDE.md` gives the 10:13 / 12:33 / 15:03 ET cycles in it (7:13 / 9:33 / 12:03 on Pacific time).
+   `private/CLAUDE.md` gives the 9:35 / 12:33 / 15:03 ET cycles in it (6:35 / 9:33 / 12:03 on Pacific time).
+   The first cycle runs at the open so a reclaim of a level he posted before the bell isn't missed: his
+   morning posts land pre-market, and those dips often reclaim in the first hour.
    - **During market hours (before 16:00 ET):** if no exit loop is running, start a self-paced one with the
      loop skill (no interval): `/loop run an exit check per CLAUDE.md`; each check sets its own next wakeup
      (exit-check step 6). A self-paced loop isn't a cron job, so `CronList` may not show it: treat it as
      running if an exit check in this session scheduled a wakeup today and the loop hasn't been stopped.
      Schedule each of the 12:33 and 15:03 ET cycles that is still ahead today.
    - **Outside market hours** (before 9:30 ET, after 16:00 ET, weekends, market holidays): schedule the next
-     10:13 ET cycle: today's if it's still ahead and today is a trading day, otherwise the next trading
+     9:35 ET cycle: today's if it's still ahead and today is a trading day, otherwise the next trading
      day's. No exit loop and no other cycles; the morning cycle sets those up.
 11. **End with a short summary:** exits taken, new posts ingested, ideas reviewed, trades placed or skipped and
    why, open positions with their stops/targets, P&L, and what's scheduled next.
@@ -454,7 +456,7 @@ run the post check (step 7) and stop (after steps 5 and 6, if they apply).
 
 ## Running it
 
-Three full cycles a day (10:13, 12:33 and 15:03 ET; the user starts the first, the rest schedule themselves in
+Three full cycles a day (9:35, 12:33 and 15:03 ET; the user starts the first, the rest schedule themselves in
 step 10) plus the self-paced exit loop, which reads his new posts about every 30 minutes (exit-check step 7),
 ends itself after the close and schedules the next morning. Don't add cycles on your own. Scheduled jobs live only in the open session (closing it or the computer sleeping drops
 them), so when none is running only the resting
