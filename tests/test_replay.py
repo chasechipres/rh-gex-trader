@@ -53,6 +53,11 @@ class Simulate(unittest.TestCase):
         out = run([(60.5, 60.6, 59.6, 59.8, 300), (59.8, 62.5, 59.7, 62.2, 300)])
         self.assertTrue(out["reclaim"].startswith("skip: R:R 0.67"))  # 2.8 to go vs 4.2 at risk
 
+    def test_outlier_volume_does_not_confirm(self):
+        # a 25x bar (Yahoo's bad print) doesn't confirm; the next normal-volume close above the level does
+        out = run([(60.5, 60.6, 59.6, 59.8, 300), (59.8, 60.5, 59.7, 60.4, 2500), (60.4, 60.5, 60.2, 60.3, 300)])
+        self.assertEqual((out["reclaim"]["entry"], out["reclaim"]["when"][-5:]), (60.3, "10:00"))
+
     def test_lower_reward_risk_floor(self):
         out = run([(60.5, 60.6, 59.6, 59.8, 300), (59.8, 61.1, 59.7, 61, 300)])
         self.assertTrue(out["reclaim"].startswith("skip: R:R 1.33"))  # 4 to go vs 3 at risk

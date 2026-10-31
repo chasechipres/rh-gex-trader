@@ -5,7 +5,7 @@
 
 - **dip:** buy at his level when price first touches it, sell by 15:45 ET that day
 - **reclaim:** the CLAUDE.md rule: after a touch, a 15-minute close back above the level on above-average volume
-  by 15:30 ET, without trading through the call's invalidation first; R:R >= 1.5 from the entry; sold by 15:45 ET
+  (but not over 10x the average, a suspect print the watcher won't confirm on either) by 15:30 ET, without trading through the call's invalidation first; R:R >= 1.5 from the entry; sold by 15:45 ET
 - **reclaim-held:** the same entry, held until the stop, the target or the call's deadline
 - **reclaim-rr1.2:** what-if, not a live rule: the reclaim with a 1.2 R:R floor instead of 1.5
 - **reclaim-near:** what-if, not a live rule: a dip to within a quarter of the daily ATR above his level counts as
@@ -25,7 +25,7 @@ from datetime import date, datetime, timedelta
 
 from . import calls as calls_mod
 from . import exits, sizing
-from .monitor import ET, hhmm
+from .monitor import ET, VOLUME_OUTLIER, hhmm
 
 MARKET = "SPY"
 SAME_DAY_EXIT, RECLAIM_BY, VOLUME_BARS = "15:45", "15:30", 20
@@ -100,9 +100,10 @@ def find_reclaim(bars, live, touch, level, stop, target, min_rr, clear=None):
             return None, "skip: traded through the stop first"
         dipped = dipped or b["low"] <= level
         before = bars[max(0, k - VOLUME_BARS):k]
+        avg = sum(x["volume"] for x in before) / VOLUME_BARS
         if (b["close"] > (level if dipped or clear is None else clear) and len(before) == VOLUME_BARS
                 and hhmm(_end(b)) <= RECLAIM_BY
-                and b["volume"] > sum(x["volume"] for x in before) / VOLUME_BARS):
+                and avg < b["volume"] <= VOLUME_OUTLIER * avg):  # over 10x: a suspect print, as in the watcher
             if (rr := (target - b["close"]) / (b["close"] - stop)) < min_rr:
                 return None, f"skip: R:R {rr:.2f} at {b['start'].strftime('%a %H:%M')}"
             return k, None

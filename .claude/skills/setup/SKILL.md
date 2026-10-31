@@ -83,8 +83,8 @@ questions per call):
 2. **Account size:** about how much is in the agentic account? (Fills the `$X,XXX` line; the limits are
    percentages, so this is context only.)
 3. **Time zone:** detect it with `uv run python -c "import time; print(time.strftime('%Z'))"` and offer it
-   first. The cron times are 10:13 / 12:33 / 15:03 ET converted to that zone (Central 9:13 / 11:33 / 14:03,
-   Mountain 8:13 / 10:33 / 13:03, Pacific 7:13 / 9:33 / 12:03).
+   first. The cron times are 9:35 / 12:33 / 15:03 ET converted to that zone (Central 8:35 / 11:33 / 14:03,
+   Mountain 7:35 / 10:33 / 13:03, Pacific 6:35 / 9:33 / 12:03).
 4. **S&P 500 funds elsewhere:** do they buy SPY/VOO/IVV/SPLG/SPYM (or similar) in a 401k, IRA or automatic
    plan? If yes, block them (wash-sale risk) and point S&P views to SPX/XSP options.
 5. **Stocks held elsewhere** that this account must never touch (free text via "Other", or none).
