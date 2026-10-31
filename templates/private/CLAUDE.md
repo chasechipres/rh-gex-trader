@@ -24,8 +24,8 @@ accounts, to blocked symbols, or to editing `private/guardrails.toml` or the hoo
 
 - **EDIT** My computers run on **Eastern time**. Cron and the post file names use it. (Machines in
   different time zones? Name each one and its zone.)
-- **EDIT** Full cycles at 10:13 / 12:33 / 15:03 ET are cron times **10:13 / 12:33 / 15:03** here. (Central:
-  9:13 / 11:33 / 14:03. Mountain: 8:13 / 10:33 / 13:03. Pacific: 7:13 / 9:33 / 12:03.)
+- **EDIT** Full cycles at 9:35 / 12:33 / 15:03 ET are cron times **9:35 / 12:33 / 15:03** here. (Central:
+  8:35 / 11:33 / 14:03. Mountain: 7:35 / 10:33 / 13:03. Pacific: 6:35 / 9:33 / 12:03.)
 
 ## Blocked symbols and why
 
