@@ -11,7 +11,8 @@
 - **reclaim-near:** what-if, not a live rule: a dip to within a quarter of the daily ATR above his level counts as
   the touch. If price never went below the level, the confirming close must clear that zone (level + ATR/4)
 
-The stop is the call's invalidation (`invalid_from` says whether it's his or the half-ATR one), the target his.
+The stop is the call's invalidation (`invalid_from` says whether it's his or the half-ATR one), the target the
+call's (`target_from`: his, or the gamma map's next level when he named none).
 Sizing is the real one (5% risk, capped by the per-order limit), so results are in dollars and in R. Each trade
 records the market's move from its open at entry (SPY, as data only), so the weekly review can test a market
 filter on many calls before anyone adds one.
@@ -156,7 +157,7 @@ def simulate(call: dict, bars: list[dict], spy: list[dict], account: float, max_
 
 
 def summarize(rows: list[dict]) -> dict:
-    """Per variant: all trades, then split by stop source and by the market's direction at entry."""
+    """Per variant: all trades, then split by stop source, target source and by the market's direction at entry."""
     def group(ts):
         pnl = [t["pnl"] for t in ts]
         return {"trades": len(ts), "wins": sum(p > 0 for p in pnl), "net": round(sum(pnl), 2),
@@ -168,6 +169,8 @@ def summarize(rows: list[dict]) -> dict:
         out[v] = {"all": group([t for _, t in ts]),
                   "stop: his": group([t for r, t in ts if r["invalid_from"] == "his"]),
                   "stop: atr": group([t for r, t in ts if r["invalid_from"] == "atr"]),
+                  "target: his": group([t for r, t in ts if r["target_from"] == "his"]),
+                  "target: gex": group([t for r, t in ts if r["target_from"] == "gex"]),
                   "market up at entry": group([t for _, t in ts if (t["market_pct"] or 0) >= 0]),
                   "market down at entry": group([t for _, t in ts if (t["market_pct"] or 0) < 0])}
     return out
@@ -198,7 +201,8 @@ def run(account: float, since: str | None = None, until: str | None = None, setu
                 except Exception:
                     cache[s] = []
         row = {"symbol": c["symbol"], "posted": c.get("posted_at") or c["posted"], "level": c["level"],
-               "target": c["target"], "stop": c["invalid"], "invalid_from": c.get("invalid_from", "his")}
+               "target": c["target"], "stop": c["invalid"], "invalid_from": c.get("invalid_from", "his"),
+               "target_from": c.get("target_from", "his")}
         rows.append(row | (simulate(c, cache[c["symbol"]], cache[MARKET], account, max_order_pct)
                            if cache[c["symbol"]] else {v: "skip: no bars" for v in VARIANTS}))
     return {"calls": rows, "summary": summarize(rows),

@@ -69,6 +69,18 @@ class Calls(unittest.TestCase):
         with self.assertRaises(ValueError):  # the trigger must sit between the invalidation and the target
             self.add(symbol="AMD", target=716, invalid=727, trigger=("below", 730))
 
+    def test_gex_targets_are_tracked_apart(self):
+        # he named 162 and "higher" but no target: the call wall at 170 stands in, marked as ours
+        c = self.add(symbol="NBIS", direction="bullish", setup="uptrend-dip", level=162, target=170, invalid=158,
+                     target_from="gex")
+        self.assertEqual((c["target_from"], self.add(symbol="ASTS", direction="bullish", setup="uptrend-dip",
+                          level=40, target=45, invalid=38)["target_from"]), ("gex", "his"))
+        with self.assertRaises(ValueError):
+            self.add(symbol="HOOD", target_from="vibes")
+        s = calls.stats([c | {"result": "hit"}, {"setup": "uptrend-dip", "direction": "bullish", "result": "fail"}])
+        self.assertEqual((s["target: gex"]["hit"], s["target: gex"]["hit_rate"], s["uptrend-dip"]["hit_rate"]),
+                         (1, 1.0, 0.5))
+
     def test_not_triggered_is_left_out_of_the_rate(self):
         s = calls.stats([{"setup": "breakout", "direction": "bullish", "result": r}
                          for r in ("hit", "fail", "not_triggered", "not_triggered")])

@@ -333,7 +333,8 @@ def cmd_calls(args) -> None:
             out(calls.add(args.symbol, args.direction, args.setup, args.level, args.target, args.invalid,
                           args.source, args.by, args.posted, args.note,
                           trigger=("above", args.above) if args.above is not None
-                          else ("below", args.below) if args.below is not None else None, atr=atr))
+                          else ("below", args.below) if args.below is not None else None, atr=atr,
+                          target_from=args.target_from))
         except ValueError as e:
             sys.exit(f"refused: {e}")
     elif args.action == "check":
@@ -514,7 +515,9 @@ def main() -> None:
     cl.add_argument("--direction", choices=["bullish", "bearish"])
     cl.add_argument("--setup", choices=["uptrend-dip", "downtrend-dip", "breakdown", "breakout", "range", "other"])
     cl.add_argument("--level", type=float, help="the level the call is made from (pivot, entry, king)")
-    cl.add_argument("--target", type=float, help="his target")
+    cl.add_argument("--target", type=float, help="his target (or, with --target-from gex, the gamma map's next level)")
+    cl.add_argument("--target-from", choices=["his", "gex"], default="his",
+                    help="gex: he named no target, so --target is the call wall (bullish) or put wall (bearish); tracked apart")
     cl.add_argument("--invalid", type=float,
                     help="the price he says proves the call wrong; leave it out when he names none (half an ATR past the level)")
     cl.add_argument("--by", help="deadline YYYY-MM-DD (default: 5 trading days after the post)")

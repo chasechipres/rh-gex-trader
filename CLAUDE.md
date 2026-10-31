@@ -58,7 +58,7 @@ uv run python -m rhgex peak show                                                
 uv run python -m rhgex journal TICKER trade|skip|watch|exit --thesis "..." --confidence 0.7 --source "..."
 uv run python -m rhgex journal TICKER trade --type shares|lev-long|inverse|call|put|spread ...   # --type is required for trades
 uv run python -m rhgex journal TICKER exit --pnl -6.50 --pnl-pct -40 --thesis "..." --confidence 1
-uv run python -m rhgex calls add TICKER --direction D --setup uptrend-dip|downtrend-dip|breakdown|breakout|range|other --level PX --target PX [--invalid PX] --source URL --posted "YYYY-MM-DD HH:MM" [--by YYYY-MM-DD] [--above|--below PX]  # no --invalid: half an ATR past his level
+uv run python -m rhgex calls add TICKER --direction D --setup uptrend-dip|downtrend-dip|breakdown|breakout|range|other --level PX --target PX [--target-from gex] [--invalid PX] --source URL --posted "YYYY-MM-DD HH:MM" [--by YYYY-MM-DD] [--above|--below PX]  # no --invalid: half an ATR past his level
 uv run python -m rhgex calls check|stats                         # score his open calls; hit rate by setup type
 uv run python -m rhgex replay --account PX [--since YYYY-MM-DD]  # his dip calls on 15-min bars: dip-buy vs reclaim vs reclaim held
 uv run python -m rhgex record [--readme --account-value PX]   # live P/L; updates private/README.md
@@ -260,6 +260,11 @@ run the post check (step 7) and stop (after steps 5 and 6, if they apply).
    `breakout` for a lost or reclaimed level. A conditional call ("lose 723 and it's 716") gets its trigger,
    `--below 723` (or `--above`), so it's scored only once price gets there; log both sides of a two-sided pivot
    as two calls. `calls stats` is his hit rate by setup: weigh his posts with it.
+   **No target named:** when he gives a level and a direction but no target ("hold 162 for higher"), still log it,
+   with the next gamma level in its favor from `gex` (the call wall for a bullish call, the put wall for a
+   bearish one) as `--target` and `--target-from gex`. This is tracking only: a trade still needs his target,
+   and the skip says "no target named". The weekly review reports `target: gex` from `calls stats` and
+   `replay`; after 10 resolved, propose whether gamma-map targets can stand in for his.
 4. **Check the account:** call `get_portfolio` (the hook needs today's value before any entry), then buying
    power and today's P&L. The hook refuses entries once the account is `max_daily_loss_pct` (default 20%)
    below its first value of the day, or `max_drawdown_pct` (default 30%) below its peak (`peak show`); exits
