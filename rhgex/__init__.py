@@ -19,6 +19,7 @@
   peak      drawdown baseline: show, or reset (owner only)
   init      set up private/ (your limits, notes, journal, plans); --github, --clone, --migrate, --check
   sync      commit private/, then pull and push it when it has a remote
+  paper     paper trading: a simulated account that takes the orders instead of Robinhood
   hook      (used by Claude Code hooks) pre|post
 """
 
@@ -313,6 +314,9 @@ def cmd_journal(args) -> None:
              "source": args.source}
     if args.action == "trade":
         entry["type"] = args.type
+    from . import paper
+    if paper.active():
+        entry["paper"] = True
     if args.action == "exit" and args.pnl is not None:
         entry["pnl"], entry["pnl_pct"] = round(args.pnl, 2), args.pnl_pct
     with open(LOG_DIR / "journal.jsonl", "a") as f:
@@ -355,12 +359,42 @@ def cmd_replay(args) -> None:
 
 
 def cmd_record(args) -> None:
-    from . import exits, record
+    from . import exits, paper, record
 
-    s = record.summarize(record.load(), exits.load())
+    entries, plans = record.load(), exits.load()
+    if paper.active():
+        st = paper.summary(paper.load())
+        s = record.summarize([e for e in entries if e.get("paper")], plans)
+        live = record.summarize([e for e in entries if not e.get("paper")], plans)
+        if args.readme:
+            record.write_readme(record.render(s, args.account_value or st["value"], paper=st)
+                                + "\n\n<details>\n<summary>Live trades before paper trading</summary>\n\n"
+                                + record.render(live, header=False) + "\n\n</details>")
+        out({"paper": {**s, "account": st}, "live": live})
+        return
+    s = record.summarize(entries, plans)
     if args.readme:
         record.write_readme(record.render(s, args.account_value))
     out(s)
+
+
+def cmd_paper(args) -> None:
+    from . import paper
+
+    try:
+        quotes = paper.parse_quotes(args.quote)
+        if args.action == "start":
+            out(paper.start(args.cash))
+        elif args.action == "order":
+            out(paper.order(args.key, args.side, args.qty, args.type, args.limit, args.stop, quotes))
+        elif args.action == "cancel":
+            out(paper.cancel(args.key))
+        elif args.action == "check":
+            out(paper.check(quotes, lows=None if args.no_lows else paper.yahoo_lows))
+        else:
+            out(paper.status(quotes))
+    except ValueError as e:
+        sys.exit(f"refused: {e}")
 
 
 def cmd_init(args) -> None:
@@ -554,6 +588,19 @@ def main() -> None:
     sy.add_argument("-m", "--message", default="cycle: notes, journal, plans", help="commit message")
     sy.add_argument("--pull", action="store_true", help="only pull (start of an exit check)")
 
+    pp = sub.add_parser("paper", help="paper trading: start, order, cancel, check (fills resting orders), status")
+    pp.add_argument("action", choices=["start", "order", "cancel", "check", "status"])
+    pp.add_argument("key", nargs="?", help="symbol, contract ('NVDA 2026-11-20 200C') or, for cancel, an order id")
+    pp.add_argument("--cash", type=float, help="start: the paper account's starting cash")
+    pp.add_argument("--side", choices=["buy", "sell"])
+    pp.add_argument("--qty", type=float)
+    pp.add_argument("--type", choices=["market", "limit", "stop_market", "stop_limit"], default="limit")
+    pp.add_argument("--limit", type=float)
+    pp.add_argument("--stop", type=float)
+    pp.add_argument("--quote", action="append", default=[], metavar="KEY=BID,ASK",
+                    help="live Robinhood quote; repeat per symbol or contract")
+    pp.add_argument("--no-lows", action="store_true", help="check: don't read Yahoo 15-minute lows for stops")
+
     h = sub.add_parser("hook")
     h.add_argument("stage", choices=["pre", "post"])
 
@@ -561,6 +608,12 @@ def main() -> None:
     if args.cmd == "hook":
         from . import hook
         return hook.main(args.stage)
+    if args.cmd == "paper" and args.action == "start" and args.cash is None:
+        p.error("paper start needs --cash")
+    if args.cmd == "paper" and args.action in ("order", "cancel") and not args.key:
+        p.error("paper order/cancel needs a symbol, contract or order id")
+    if args.cmd == "paper" and args.action == "order" and (args.side is None or args.qty is None):
+        p.error("paper order needs --side and --qty")
     if args.cmd == "plan" and args.action != "list" and not args.symbol:
         p.error("plan add/close needs a symbol")
     if args.cmd == "plan" and args.action == "add" and (args.stop is None or args.target is None):
@@ -579,4 +632,5 @@ def main() -> None:
     {"research": cmd_research, "gex": cmd_gex, "check": cmd_check, "blocks": cmd_blocks,
      "fit": cmd_fit, "plan": cmd_plan, "exits": cmd_exits, "wash": cmd_wash, "watch": cmd_watch, "journal": cmd_journal,
      "monitor": cmd_monitor, "replay": cmd_replay, "record": cmd_record, "calls": cmd_calls, "size": cmd_size, "lev": cmd_lev,
-     "lock": cmd_lock, "peak": cmd_peak, "preflight": cmd_preflight, "init": cmd_init, "sync": cmd_sync}[args.cmd](args)
+     "lock": cmd_lock, "peak": cmd_peak, "preflight": cmd_preflight, "init": cmd_init, "sync": cmd_sync,
+     "paper": cmd_paper}[args.cmd](args)

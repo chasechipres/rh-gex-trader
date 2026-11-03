@@ -40,6 +40,7 @@ rh-gex-trader/              shared (this repo)
 │   ├── exits.py            exit plans and the exit check
 │   ├── watches.py          watch triggers, checked every exit check
 │   ├── monitor.py          the watcher: wakes the session when a level is crossed
+│   ├── paper.py            paper trading: a simulated account that takes the orders instead of Robinhood
 │   ├── dailyloss.py        daily loss stop and drawdown pause
 │   ├── sizing.py           position size for a fixed % risk
 │   ├── leveraged.py        single-stock leveraged funds and their stocks

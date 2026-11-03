@@ -16,7 +16,7 @@ import urllib.request
 from datetime import date, datetime
 from pathlib import Path
 
-from . import dailyloss, exits, guardrails, paths
+from . import dailyloss, exits, guardrails, paper, paths
 
 LEDGER = paths.STATE / "ledger.jsonl"
 ACCOUNT = paths.STATE / "account.json"
@@ -242,6 +242,9 @@ def pre(event: dict) -> None:
         return _decide("ask", ASK[name])
     if kind == "unknown":
         return _decide("deny", f"unrecognized Robinhood tool {tool}; map it in rhgex/hook.py first")
+    if paper.active():
+        return _decide("deny", "paper trading is on (private/state/paper.json): place it with `rhgex paper order` "
+                               "instead; real orders stay off until the owner ends paper trading")
     try:
         order = normalize(tool, args)
     except Exception as e:

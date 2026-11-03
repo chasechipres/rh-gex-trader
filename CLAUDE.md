@@ -33,6 +33,27 @@ instructions follow, and they win over this file where the two differ:
   exits that can't be placed are handed off the same way. If it hasn't shown up by the next check, re-send
   the order once if it still clears preflight; otherwise `plan close` it ("handed off, not placed") and
   journal a `skip`. A hook denial is not a handoff: accept it.
+- **Paper trading:** when `private/CLAUDE.md` says the account is paper trading (`rhgex paper status` shows it),
+  every order goes to a simulated account instead of Robinhood, and the hook refuses real orders. The playbook
+  runs unchanged otherwise (research, rules, preflight, plans, sizing, journal, lock, schedule), with these swaps:
+  - **Orders:** `paper order KEY --side buy|sell --qty N --type limit|market|stop_market|stop_limit [--limit PX]
+    [--stop PX] --quote KEY=BID,ASK` in place of `place_equity_order` / `place_option_order`, and
+    `paper cancel ID|KEY` in place of cancels. KEY is the symbol, or the contract for an option
+    (`"NVDA 2026-11-20 200C"`). The same guardrails run on it (blocked symbols, caps, a plan before an entry,
+    the daily loss stop and drawdown pause), against the paper account's value.
+  - **Quotes still come from Robinhood** (`get_equity_quotes`, `get_option_quotes`); pass them with `--quote`.
+  - **Positions, orders and value:** start every exit check with `paper check --quote KEY=BID,ASK ...` for every
+    paper position and open order, in place of `get_equity_positions` / `get_option_positions` /
+    `get_equity_orders` / `get_option_orders` / `get_portfolio`. It fills resting orders (stops also read
+    Yahoo's 15-minute lows since the last check) and reports cash, positions, open orders and `value`; size
+    with that `value`. `stuck_stops` are option stop-limits that triggered without filling.
+  - **Fills** follow `rhgex/paper.py`'s rules (shares fill at the ask/bid; option limits at the mid; a stop that
+    gapped fills at the bid). Journal exits with the fill's `pnl` / `pnl_pct` (`position_closed` for the whole
+    position after partial sales). Skip `wash add`: paper losses aren't taxable.
+  - **Spreads stay refused** (#23), so paper results show what the live account could do.
+  - `record --readme` shows the paper account first (value, return since the start) and folds the live history
+    below it; journal entries are marked `paper` automatically. Notifications start with "Paper:".
+  - The handoff rule doesn't apply: there's nothing for the user to place.
 - **Not set up?** If `private/guardrails.toml` is missing, the hook refuses every order. Run
   `rhgex init --check`, tell the user what's missing, and suggest `/setup`, which walks them
   through it. Don't run `rhgex init --github` yourself: creating a GitHub repo is the user's call.
@@ -380,7 +401,8 @@ run the post check (step 7) and stop (after steps 5 and 6, if they apply).
    `trade` (with `--type shares|lev-long|inverse|call|put|spread`: `lev-long` for a 2x long fund, `inverse` for any
    inverse fund, so the track record splits results by trade type), `skip`
    (fails a check, including a setup that clears everything but doesn't fit a limit) or `watch` (not triggered
-   yet; name the trigger, and add it with `watch add` so every exit check tests it). No paper trades.
+   yet; name the trigger, and add it with `watch add` so every exit check tests it). No hypothetical trades
+   (in paper mode, the paper orders are the trades).
    **Watch triggers** go just past the level he names (about half an ATR, or the next strike), with the stop
    just past it the other way, not at the gamma flip or a far reclaim: a trigger far from his level fires after
    most of the move. `watch add` needs the stop and target and refuses a watch under 1.5 reward:risk from the

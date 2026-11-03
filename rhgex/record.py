@@ -113,15 +113,25 @@ def _trade_rows(trades: list[dict]) -> list[str]:
     return rows
 
 
-def render(s: dict, account_value: float | None = None, today: date | None = None) -> str:
-    """Summary tables first, then the newest RECENT closed trades; the full list folds into <details>."""
+def render(s: dict, account_value: float | None = None, today: date | None = None, paper: dict | None = None,
+           header: bool = True) -> str:
+    """Summary tables first, then the newest RECENT closed trades; the full list folds into <details>.
+    paper: the paper account's summary, which titles this block as paper trades with its return.
+    header=False: a second block under the first (the live history while paper trading)."""
     today = today or date.today()
     live = s["live"]
-    lines = [f"_Updated {today.isoformat()} by `rhgex record --readme`._", "",
-             "**Live trades (agentic account)**", "",
-             "| Account value | Closed trades | Win rate | Realized P/L |", "|---|---|---|---|",
-             f"| {f'${account_value:,.2f}' if account_value is not None else 'n/a'} | {live['closed']} | "
-             f"{_rate(live['wins'], live['closed'])} | ${live['realized_pnl']:,.2f} |", ""]
+    lines = [f"_Updated {today.isoformat()} by `rhgex record --readme`._", ""] if header else []
+    if paper:
+        lines += [f"**Paper trades (from {paper['started'][:10]}, ${paper['starting_cash']:,.2f} start)**", "",
+                  "| Paper value | Return | Closed trades | Win rate | Realized P/L |", "|---|---|---|---|---|",
+                  f"| ${account_value:,.2f} | {paper['return_pct']:+.2f}% | {live['closed']} | "
+                  f"{_rate(live['wins'], live['closed'])} | ${live['realized_pnl']:,.2f} |", ""]
+    else:
+        title = "Live trades (agentic account)" if header else "Live trades (agentic account, before paper trading)"
+        lines += [f"**{title}**", "",
+                  "| Account value | Closed trades | Win rate | Realized P/L |", "|---|---|---|---|",
+                  f"| {f'${account_value:,.2f}' if account_value is not None else 'n/a'} | {live['closed']} | "
+                  f"{_rate(live['wins'], live['closed'])} | ${live['realized_pnl']:,.2f} |", ""]
     if s.get("by_type"):
         lines += ["**By trade type**", "", "| Type | Closed | Win rate | P/L |", "|---|---|---|---|"]
         for t in s["by_type"]:
