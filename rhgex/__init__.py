@@ -632,4 +632,5 @@ def main() -> None:
     {"research": cmd_research, "gex": cmd_gex, "check": cmd_check, "blocks": cmd_blocks,
      "fit": cmd_fit, "plan": cmd_plan, "exits": cmd_exits, "wash": cmd_wash, "watch": cmd_watch, "journal": cmd_journal,
      "monitor": cmd_monitor, "replay": cmd_replay, "record": cmd_record, "calls": cmd_calls, "size": cmd_size, "lev": cmd_lev,
-     "lock": cmd_lock, "peak": cmd_peak, "preflight": cmd_preflight, "init": cmd_init, "sync": cmd_sync}[args.cmd](args)
+     "lock": cmd_lock, "peak": cmd_peak, "preflight": cmd_preflight, "init": cmd_init, "sync": cmd_sync,
+     "paper": cmd_paper}[args.cmd](args)
